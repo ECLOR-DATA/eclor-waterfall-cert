@@ -1,0 +1,19 @@
+{
+  "Visual_General": "General",
+  "Visual_GrandTotal": "Grand total",
+  "Visual_XAxis": "X axis",
+  "Visual_YAxis": "Y axis",
+  "Visual_Bridges": "Bridges",
+  "Visual_Pillars": "Pillars",
+  "Visual_Rails": "Variance",
+  "Visual_Connectors": "Connectors",
+  "Visual_Layout": "Layout",
+  "Visual_AnalysisTable": "Table",
+  "Visual_Legend": "Legend",
+  "Visual_VariationArc": "Variation arc",
+  "Visual_EmptyPrompt": "Select or drag fields to populate this visual",
+  "Visual_DataCapHeader": "Data may be incomplete",
+  "Visual_DataCapDetail": "Showing the first 10,000 rows. Consider applying a filter or drilling down.",
+  "Visual_ErrComparisonPillars": "Comparison mode needs at least 2 pillars. Toggle them in the Format pane → Pillars (per category).",
+  "Visual_ErrCumulativePillar": "Cumulative mode needs at least one pillar. Either mark a category as pillar (Format → Pillars per category), or enable Format → General → Grand total."
+}

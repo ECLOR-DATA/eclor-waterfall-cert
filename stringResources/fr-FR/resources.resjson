@@ -1,0 +1,19 @@
+{
+  "Visual_General": "Général",
+  "Visual_GrandTotal": "Total général",
+  "Visual_XAxis": "Axe X",
+  "Visual_YAxis": "Axe Y",
+  "Visual_Bridges": "Variations",
+  "Visual_Pillars": "Piliers",
+  "Visual_Rails": "Variance",
+  "Visual_Connectors": "Connecteurs",
+  "Visual_Layout": "Disposition",
+  "Visual_AnalysisTable": "Tableau",
+  "Visual_Legend": "Légende",
+  "Visual_VariationArc": "Arc de variation",
+  "Visual_EmptyPrompt": "Sélectionnez ou faites glisser des champs pour alimenter ce visuel",
+  "Visual_DataCapHeader": "Les données peuvent être incomplètes",
+  "Visual_DataCapDetail": "Affichage des 10 000 premières lignes. Appliquez un filtre ou explorez à un niveau inférieur.",
+  "Visual_ErrComparisonPillars": "Le mode comparaison nécessite au moins 2 piliers. Activez-les dans le volet Format → Piliers (par catégorie).",
+  "Visual_ErrCumulativePillar": "Le mode cumulatif nécessite au moins un pilier. Marquez une catégorie comme pilier (Format → Piliers par catégorie), ou activez Format → Général → Grand total."
+}

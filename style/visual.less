@@ -1,0 +1,84 @@
+.eclor-waterfall-root {
+  width: 100%;
+  height: 100%;
+  font-family: "Segoe UI", "Segoe UI Web (West European)", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  background: transparent;
+  overflow: hidden;
+  position: relative;
+
+  // Direct-child SVG = the main chart. Stretch it to fill the visual.
+  // Nested SVGs inside the empty-state banner / preview keep their own
+  // width/height (otherwise the small "(i)" info icon would balloon to
+  // fill its row and shove the message text off-screen).
+  > svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .wf-empty-preview > svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    max-width: 420px;
+    max-height: 240px;
+  }
+
+  // Hover highlight on every clickable bar / rail rect / x-label.
+  // Subtle brightness lift so the user sees which element is targeted
+  // before clicking. Skipped in high-contrast mode (handled by the
+  // browser's own focus / hover indicators).
+  .wf-clickable {
+    cursor: pointer;
+    transition: filter 80ms ease-in-out;
+  }
+  .wf-clickable:hover {
+    filter: brightness(1.08);
+  }
+
+  // Analysis-table rows have their own hover styling because applying
+  // `filter: brightness` to a <g> that contains <text> blurs glyph
+  // subpixel rendering on most browsers (Edge, Chrome). Instead, hover
+  // toggles a soft neutral fill on the row's background rect. Selection
+  // state is conveyed by opacity on the non-selected rows (handled in
+  // applySelectionVisuals), no coloured tint on the selected one.
+  .wf-table-row {
+    cursor: pointer;
+    outline: none;
+  }
+  .wf-table-row .wf-table-row-bg {
+    fill: transparent;
+    transition: fill 80ms ease-in-out;
+  }
+  .wf-table-row:hover .wf-table-row-bg {
+    fill: rgba(0, 0, 0, 0.04);
+  }
+  // Custom focus ring — visible only on keyboard navigation (:focus-visible).
+  // Required for WCAG 2.4.7 (focus visible) after we disabled the native
+  // browser outline above. SVG <rect> with dashed stroke painted by JS
+  // gets toggled visible via this rule.
+  .wf-table-row .wf-table-row-focus {
+    visibility: hidden;
+    pointer-events: none;
+  }
+  .wf-table-row:focus-visible .wf-table-row-focus {
+    visibility: visible;
+  }
+
+  // Visible focus ring for KEYBOARD navigation only. `:focus-visible`
+  // (instead of `:focus`) keeps the ring hidden when a user clicks a bar
+  // for cross-filter / dynamic-context selection — the blue selection
+  // outline was distracting in that case. Tab / arrow-key navigation
+  // still triggers it for accessibility.
+  .wf-bar:focus,
+  .wf-bar:focus-visible {
+    outline: none;
+  }
+  .wf-bar:focus-visible .wf-focus-ring {
+    visibility: visible;
+  }
+  .wf-focus-ring {
+    visibility: hidden;
+    pointer-events: none;
+  }
+}

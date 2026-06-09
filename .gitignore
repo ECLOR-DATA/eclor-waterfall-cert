@@ -1,0 +1,14 @@
+node_modules/
+.tmp/
+dist/
+*.pbiviz
+!releases/*.pbiviz
+.vscode/
+.DS_Store
+*.log
+.env
+coverage/
+.nyc_output/
+webpack.statistics.*.html
+tools/audit-render.svg
+tools/audit-render.png
