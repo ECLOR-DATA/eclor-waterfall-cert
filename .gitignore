@@ -12,3 +12,13 @@ coverage/
 webpack.statistics.*.html
 tools/audit-render.svg
 tools/audit-render.png
+# .claude stays local (settings.local.json, worktrees/) EXCEPT the repo agents,
+# which are part of the project tooling and must travel with a clone.
+.claude/*
+!.claude/agents/
+
+# pbiviz-cert-audit workspace (skill-generated; reports/findings ARE committed)
+audit/screens/
+audit/.auth/
+audit/state.json
+!audit/test-report/**/*.pbiviz

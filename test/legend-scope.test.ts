@@ -1,6 +1,15 @@
+/**
+ * Legend "Apply to" scope (1.1.65) — pillars only / bridges only / both.
+ *
+ * An excluded bar type ignores its legend segments (flat bar in its
+ * Pillars/Bridges card colour); the corresponding global colour picker
+ * stays visible in the pane since it's the fallback.
+ */
 
 import { makeVisual, dvBuild } from "./_harness";
 
+// A (default first pillar), B (bridge), C (default last pillar) × 2 legend
+// values each → every bar carries 2 segments when in scope.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function legendDv(applyTo?: string): any {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -28,6 +37,7 @@ function render(dv: any): { target: HTMLElement; v: any } {
   return { target, v };
 }
 
+/** Body rects of the bar at catIdx (focus ring + mask internals excluded). */
 function bodyRects(target: HTMLElement, catIdx: number): Element[] {
   const bar = target.querySelector(`g.wf-bar[data-cat-idx="${catIdx}"]`);
   expect(bar).toBeTruthy();
@@ -39,23 +49,23 @@ function bodyRects(target: HTMLElement, catIdx: number): Element[] {
 describe("legend applyTo scope — stacked vs flat per bar type", () => {
   test("default (both): pillars AND bridges render stacked segments", () => {
     const { target } = render(legendDv());
-    expect(bodyRects(target, 0).length).toBe(2);
-    expect(bodyRects(target, 1).length).toBe(2);
-    expect(bodyRects(target, 2).length).toBe(2);
+    expect(bodyRects(target, 0).length).toBe(2); // A pillar — 2 segments
+    expect(bodyRects(target, 1).length).toBe(2); // B bridge — 2 segments
+    expect(bodyRects(target, 2).length).toBe(2); // C pillar
   });
 
   test("pillars only: bridges go flat (single rect), pillars stay stacked", () => {
     const { target } = render(legendDv("pillars"));
-    expect(bodyRects(target, 0).length).toBe(2);
-    expect(bodyRects(target, 1).length).toBe(1);
-    expect(bodyRects(target, 2).length).toBe(2);
+    expect(bodyRects(target, 0).length).toBe(2); // A pillar stacked
+    expect(bodyRects(target, 1).length).toBe(1); // B bridge FLAT
+    expect(bodyRects(target, 2).length).toBe(2); // C pillar stacked
   });
 
   test("bridges only: pillars go flat, bridges stay stacked", () => {
     const { target } = render(legendDv("bridges"));
-    expect(bodyRects(target, 0).length).toBe(1);
-    expect(bodyRects(target, 1).length).toBe(2);
-    expect(bodyRects(target, 2).length).toBe(1);
+    expect(bodyRects(target, 0).length).toBe(1); // A pillar FLAT
+    expect(bodyRects(target, 1).length).toBe(2); // B bridge stacked
+    expect(bodyRects(target, 2).length).toBe(1); // C pillar FLAT
   });
 });
 

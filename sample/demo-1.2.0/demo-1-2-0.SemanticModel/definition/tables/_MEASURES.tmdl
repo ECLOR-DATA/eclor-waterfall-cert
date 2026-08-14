@@ -1,0 +1,39 @@
+table _MEASURES
+	lineageTag: bd4d0200-d6f8-433f-ab01-55b3d2ceecf0
+
+	measure Actual = SUM(FACT_DEMO[Amount])
+		formatString: #,##0
+		lineageTag: 303bd854-b50f-4a45-a019-596369531125
+
+	measure 'Actual LY' = SUM(FACT_DEMO[AmountLY])
+		formatString: #,##0
+		lineageTag: b3234916-28c0-451d-a70e-c885c92dce2c
+
+	measure 'Δ vs LY' = [Actual] - [Actual LY]
+		formatString: +#,##0;-#,##0;0
+		lineageTag: c4d1c0ff-f4d7-48a0-a4f5-bb52400e9b68
+
+	measure 'Δ% vs LY' = DIVIDE([Δ vs LY], ABS([Actual LY]))
+		formatString: +0.0%;-0.0%;0.0%
+		lineageTag: e5fdd631-3abc-4565-aef9-7dc74e40d15b
+
+	measure 'Scenario value' = SUM(SCENARIO[Value])
+		formatString: #,##0
+		lineageTag: 6e8f97a7-0c1e-4278-a025-52ce3ef8f800
+
+	column Value
+		dataType: int64
+		isHidden
+		lineageTag: 9163926a-7da8-47ec-a125-0ee4708af4ef
+		summarizeBy: sum
+		isNameInferred
+		sourceColumn: [Value]
+
+		annotation SummarizationSetBy = Automatic
+
+	partition _MEASURES = calculated
+		mode: import
+		source = {1}
+
+	annotation PBI_ResultType = Table
+

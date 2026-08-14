@@ -1,8 +1,19 @@
+/**
+ * Broken-axis indicator + yScaleClamped floor anchoring — render coverage.
+ *
+ * Audit TG-04: the showBreak gate (showBrokenAxis && yMinOffset > 0 &&
+ * userMode === "comparison" && offsetEffective), the per-pillar SVG mask
+ * `wf-break-{idx}` with its black cut-polygon, the grey / HC diagonals and
+ * the pillar floor anchoring (yScaleClamped) had zero render assertions —
+ * yRange.test.ts covers the offset MATH only. CONTEXT.md decisions #6/#7.
+ */
 
 import { makeVisual, makeMockHost, dvBuild } from "./_harness";
 import { Visual } from "../src/visual";
 import { VisualFormattingSettingsModel } from "../src/settings";
 
+// 2 categories both marked as pillars → comparison mode renders 2 anchor
+// pillars, no bridges. `yAxis` carries the floor-offset knobs under test.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const buildDv = (values: number[], yAxis: Record<string, unknown>, mode: string): any => {
   const dv = dvBuild({
@@ -41,14 +52,19 @@ const render = (
 const masks = (target: HTMLElement) =>
   Array.from(target.querySelectorAll('mask[id^="wf-break-"]'));
 
+// Diagonals are the only <line> elements emitted INSIDE a wf-bar group
+// (connectors + gridlines live outside it).
 const barLines = (target: HTMLElement) =>
   Array.from(target.querySelectorAll("g.wf-bar line"));
 
+// Bar body rects — exclude the focus ring and the white rect inside the mask def.
 const barBodyRects = (target: HTMLElement) =>
   Array.from(target.querySelectorAll("g.wf-bar rect")).filter(
     (r) => !r.classList.contains("wf-focus-ring") && !r.closest("mask")
   );
 
+// Pillar VALUE labels are flushed into <g data-cat-idx class="wf-clickable">
+// groups; axis tick texts are not, so this isolates them.
 const valueLabels = (target: HTMLElement) =>
   Array.from(target.querySelectorAll("g.wf-clickable[data-cat-idx] text")).map(
     (t) => t.textContent || ""
@@ -60,9 +76,11 @@ describe("broken-axis indicator: mask + diagonals gate (TG-04)", () => {
     const ms = masks(target);
     expect(ms.map((m) => m.getAttribute("id")).sort()).toEqual(["wf-break-0", "wf-break-1"]);
     for (const m of ms) {
+      // White box = visible, black parallelogram = the transparent cutout.
       expect(m.querySelector('rect[fill="white"]')).toBeTruthy();
       expect(m.querySelector('polygon[fill="black"]')).toBeTruthy();
     }
+    // Each bar rect is wrapped in a <g mask="url(#wf-break-N)">.
     const bars = Array.from(target.querySelectorAll("g.wf-bar"));
     expect(bars.length).toBe(2);
     bars.forEach((bar, i) => {
@@ -75,7 +93,7 @@ describe("broken-axis indicator: mask + diagonals gate (TG-04)", () => {
   test("diagonals: two neutral-grey 1.5px lines per pillar, framing the cutout", () => {
     const target = render([150, 200], { yMinOffset: 50 });
     const lines = barLines(target);
-    expect(lines.length).toBe(4);
+    expect(lines.length).toBe(4); // 2 pillars × 2 diagonals
     for (const l of lines) {
       expect(l.getAttribute("stroke")).toBe("#666666");
       expect(l.getAttribute("stroke-width")).toBe("1.5");
@@ -108,6 +126,7 @@ describe("broken-axis indicator: mask + diagonals gate (TG-04)", () => {
 
   test("stripe position depends on sign: all-positive → near the floor, all-negative → near the ceiling", () => {
     const half = (target: HTMLElement): number[] => {
+      // For each bar: (mean diagonal y − bar top) / bar height ∈ [0, 1].
       const bars = Array.from(target.querySelectorAll("g.wf-bar"));
       return bars.map((bar) => {
         const rect = Array.from(bar.querySelectorAll("rect")).find(
@@ -127,10 +146,10 @@ describe("broken-axis indicator: mask + diagonals gate (TG-04)", () => {
     expect(positive.length).toBe(2);
     expect(negative.length).toBe(2);
     for (const frac of positive) {
-      expect(frac).toBeGreaterThan(0.5);
+      expect(frac).toBeGreaterThan(0.5); // lower half — cut marks the lifted floor
     }
     for (const frac of negative) {
-      expect(frac).toBeLessThan(0.5);
+      expect(frac).toBeLessThan(0.5); // upper half — cut marks the lowered ceiling
     }
   });
 
@@ -173,13 +192,17 @@ describe("yScaleClamped: pillars anchored to the chart floor under the offset (T
     const bottoms = rects.map(
       (r) => Number(r.getAttribute("y")) + Number(r.getAttribute("height"))
     );
+    // Rect bottoms equal each other…
     expect(bottoms[0]).toBeCloseTo(bottoms[1], 0);
+    // …and equal the chart floor = the lowest rendered gridline (yScale(yMin)).
     const gridYs = Array.from(target.querySelectorAll('line[stroke="#d4d4d4"]')).map(
       (l) => Number(l.getAttribute("y1"))
     );
     expect(gridYs.length).toBeGreaterThan(0);
     const floor = Math.max(...gridYs);
     expect(bottoms[0]).toBeCloseTo(floor, 0);
+    // Heights follow the OFFSET range [yMin=100 .. max]: (150−100)/(200−100) = 0.5.
+    // Without the offset the ratio would be 150/200 = 0.75 — proves truncation.
     const hA = Number(rects[0].getAttribute("height"));
     const hB = Number(rects[1].getAttribute("height"));
     expect(hA / hB).toBeCloseTo(0.5, 2);
@@ -189,6 +212,7 @@ describe("yScaleClamped: pillars anchored to the chart floor under the offset (T
     const withOffset = valueLabels(render([150, 200], { yMinOffset: 50 }));
     const without = valueLabels(render([150, 200], { yMinOffset: 0 }));
     expect(withOffset).toEqual(without);
+    // Label honesty: the visually-truncated bar still labels the full actual.
     expect(withOffset.some((t) => /(^|\s)150(\b|$)/.test(t))).toBe(true);
     expect(withOffset.some((t) => /(^|\s)200(\b|$)/.test(t))).toBe(true);
   });

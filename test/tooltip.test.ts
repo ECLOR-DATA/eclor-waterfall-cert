@@ -40,7 +40,7 @@ const pillarCdp: TooltipCategory = {
   pillarColor: "#FFAA00",
   actualValue: 1250,
   varianceValues: [],
-  identity: { __identity: true }
+  identity: { __identity: true } // truthy so it's not treated as synth
 };
 
 const bridgePosCdp: TooltipCategory = {
@@ -66,6 +66,7 @@ describe("buildTooltipItems — native PBI tooltip parity", () => {
     const items = buildTooltipItems(pillarCdp, 0, baseContext);
     expect(items[0].displayName).toBe("Country");
     expect(items[0].value).toBe("France");
+    // No empty displayName — would render as a blank / white-on-white row.
     expect(items[0].displayName.length).toBeGreaterThan(0);
   });
 
@@ -96,6 +97,7 @@ describe("buildTooltipItems — native PBI tooltip parity", () => {
   test("text colour is NEVER set on an item — PBI handles contrast itself", () => {
     const items = buildTooltipItems(pillarCdp, 0, baseContext);
     items.forEach((it) => {
+      // Forcing a text colour would override PBI's theme contrast.
       expect((it as unknown as { textColor?: string }).textColor).toBeUndefined();
     });
   });
@@ -124,6 +126,7 @@ describe("buildTooltipItems — native PBI tooltip parity", () => {
         ]
       }
     );
+    // [0]=Country, [1]=Sales, [2]=Δ N-1, [3]=Δ Budget
     expect(items.length).toBe(4);
     expect(items[2].displayName).toBe("Δ N-1");
     expect(items[2].value).toBe("-150");
@@ -137,7 +140,11 @@ describe("buildTooltipItems — native PBI tooltip parity", () => {
 
 describe("getBarColor — matches the renderer's resolution chain", () => {
   test("pillar always uses cdp.pillarColor (already pre-resolved in parseDataView)", () => {
+    // After 1.0.54, parseDataView pre-resolves cdp.pillarColor to per-row fx
+    // override OR the global default. The tooltip just trusts that value.
     expect(getBarColor(pillarCdp, baseContext)).toBe(pillarCdp.pillarColor);
+    // Even with a different global on the context, the pre-resolved value wins
+    // (the global was already factored in upstream).
     const ctx: TooltipBuildContext = {
       ...baseContext,
       pillars: { pillarColor: "#123456", displayUnits: "auto", decimalPlaces: 0 }
@@ -152,6 +159,7 @@ describe("getBarColor — matches the renderer's resolution chain", () => {
 
   test("bridge with no per-row override → uses global colorBridge (sign-agnostic)", () => {
     expect(getBarColor(bridgePosCdp, baseContext)).toBe("#50be87");
+    // Negative value gets the same global colour now — no fav/defav split.
     expect(getBarColor(bridgeNegCdp, baseContext)).toBe("#50be87");
   });
 

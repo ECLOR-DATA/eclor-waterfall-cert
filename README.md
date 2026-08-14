@@ -81,6 +81,22 @@ CI runs `lint → tsc → jest → pbiviz package` on every push to `main` and `
 - `npm audit` returns 0 vulnerabilities; certification readiness detailed in [docs/CERT_AUDIT.md](docs/CERT_AUDIT.md).
 - Design rationale and architectural decisions: [CONTEXT.md](CONTEXT.md). Version history: [CHANGELOG.md](CHANGELOG.md).
 
+## Known limitations
+
+One behaviour is documented rather than fixed, deliberately.
+
+**A conditional-formatting RULE on the pillar colour also changes the pillar
+FALLBACK.** When `Pillars → Pillar colour` carries an fx *rule* (not a
+constant), the first colour the rule resolves becomes the fallback used by
+pillars that have no colour of their own — the synthesized comparison anchors,
+the Grand total, and the legend segment defaults. An explicitly set colour
+always wins, so the remedy is direct: give each measure pillar its colour in
+`Pillars → <measure>`, and the Grand total its own in the `Grand total` card.
+A constant fx is unaffected (its value *is* the right fallback).
+
+Rail styles, the neutral threshold, pillar fill styles and outlines all apply
+in both orientations since 1.3.3.0.
+
 ## License
 
 See [LICENSE](LICENSE).

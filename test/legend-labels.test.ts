@@ -1,6 +1,14 @@
+/**
+ * "Legend labels" (renamed from "Segment labels", 1.1.72):
+ *  - dedicated font control (family / size / bold / italic / underline);
+ *  - per-value label + background colours persisted via metadata slots
+ *    (segmentLabelColor{i} / segmentLabelBgColor{i}), like itemColor.
+ */
 
 import { makeVisual, dvBuild } from "./_harness";
 
+// 1 category, 2 legend values → one bar with 2 tall segments. Big values so
+// each segment clears the label height gate.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function dv(legendObj: Record<string, unknown>): any {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -28,6 +36,7 @@ function render(d: any): HTMLElement {
   return target;
 }
 
+// Segment labels are the only <text> emitted with pointer-events="none".
 function segLabels(target: HTMLElement): SVGTextElement[] {
   return Array.from(
     target.querySelectorAll('text[pointer-events="none"]')
@@ -63,10 +72,11 @@ describe("Legend labels — dedicated font control", () => {
 describe("Legend labels — per-value colour slots", () => {
   test("segmentLabelColor{i} slot tints the matching value's segment label", () => {
     const target = render(dv({
-      segmentLabelColor0: { solid: { color: "#ff0000" } },
-      segmentLabelColor1: { solid: { color: "#0000ff" } }
+      segmentLabelColor0: { solid: { color: "#ff0000" } }, // X = value #0
+      segmentLabelColor1: { solid: { color: "#0000ff" } } // Y = value #1
     }));
     const fills = segLabels(target).map((t) => t.getAttribute("fill"));
+    // Two segments (X top-of-stack order depends on render), both slot colours present.
     expect(fills).toContain("#ff0000");
     expect(fills).toContain("#0000ff");
   });

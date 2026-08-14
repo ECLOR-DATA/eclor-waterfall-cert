@@ -1,7 +1,23 @@
+/**
+ * Variation-arc label content modes — audit TG-06.
+ *
+ * The global `variationArc.defaultSource` dropdown drives EVERY arc label
+ * (donut-style "Label contents" cascade in buildArcLabel, src/visual.ts):
+ *   "auto-abs"  → delta value only          (formatAbsDelta)
+ *   "auto-pct"  → delta percentage only     (formatPctDelta)
+ *   "auto-both" → both, " | " separator     ← default + legacy fallback
+ * Plus the zero-baseline guard in formatPctDelta (`baseline !== 0 ? … : 0`)
+ * that keeps 0-valued departure pillars from emitting Infinity/NaN into SVG.
+ * Existing arc suites (fx bg colour, arrowEnds) verify geometry/colour only —
+ * this suite pins the label TEXT itself.
+ */
 
 import { makeVisual, dvBuild } from "./_harness";
 
 describe("variation-arc label modes (defaultSource dispatch + zero-baseline pct guard)", () => {
+  // 2 marked pillars → exactly one arc. Returns every rendered <text>
+  // content; the arc label is asserted by exact string membership (pillar
+  // value labels carry no "+" sign and no "%", so no collision).
   const arcTextsFor = (
     arcObjects: Record<string, unknown>,
     values: [number, number] = [100, 200]
@@ -30,6 +46,7 @@ describe("variation-arc label modes (defaultSource dispatch + zero-baseline pct 
   test('"auto-pct" → percentage only: "+100.0%" for 100→200 (decimals from the "+0.0;-0.0;0" model format)', () => {
     const texts = arcTextsFor({ defaultSource: "auto-pct" });
     expect(texts).toContain("+100.0%");
+    // pct-only mode: no combined " | " label anywhere.
     expect(texts.some((t) => t.includes("|"))).toBe(false);
   });
 
@@ -53,6 +70,8 @@ describe("variation-arc label modes (defaultSource dispatch + zero-baseline pct 
   });
 
   test("zero-baseline guard: departure pillar = 0 → pct is \"0%\", never Infinity/NaN in the SVG", () => {
+    // formatPctDelta: `baseline !== 0 ? delta/baseline*100 : 0` — value 0 hits
+    // the model format's zero pattern ("0" → no decimals, no sign).
     const texts = arcTextsFor({ defaultSource: "auto-pct" }, [0, 200]);
     expect(texts).toContain("0%");
     expect(texts.some((t) => /NaN|Infinity/i.test(t))).toBe(false);
@@ -67,6 +86,8 @@ describe("variation-arc label modes (defaultSource dispatch + zero-baseline pct 
   });
 
   test("decimalPlaces card override (2) applies to BOTH parts of the combined label", () => {
+    // arcDecimals feeds cardDecimals for abs AND the decimalsOverride of the
+    // pct's "+0.0;-0.0;0" model format.
     expect(arcTextsFor({ defaultSource: "auto-both", decimalPlaces: 2 })).toContain(
       "+100.00 | +100.00%"
     );

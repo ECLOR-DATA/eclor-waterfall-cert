@@ -1,3 +1,9 @@
+/**
+ * Variance rail data-label placement — labels sit at the OUTER TIP of the
+ * rail bar: positive above the bar top, negative below the bar bottom
+ * (1.1.61.0 — previously the label sat across the centre line, which read
+ * as inverted: negative labels on top, positive ones at the bottom).
+ */
 
 import { makeVisual, dvBuild } from "./_harness";
 
@@ -19,6 +25,9 @@ const render = (varianceValues: number[]): HTMLElement => {
   return target;
 };
 
+// Rail bars/labels are the only wf-clickable rect/text emitted OUTSIDE any
+// <g> wrapper (chart bars live inside g.wf-bar, chart value labels inside
+// g.wf-clickable groups, table cells only exist when an analysisDim is bound).
 const railRect = (target: HTMLElement, catIdx: number) =>
   Array.from(target.querySelectorAll(`rect.wf-clickable[data-cat-idx="${catIdx}"]`)).find(
     (r) => !r.closest("g")
@@ -32,7 +41,7 @@ const num = (el: Element, attr: string) => Number(el.getAttribute(attr));
 
 describe("variance rail labels: outer-tip placement (positive above / negative below)", () => {
   test("positive label baseline ABOVE the bar top, negative label below the bar bottom", () => {
-    const target = render([50, -100]);
+    const target = render([50, -100]); // maxAbs = 100 → the A bar is half-height
     const rectA = railRect(target, 0);
     const labelA = railLabel(target, 0);
     expect(rectA).toBeTruthy();
@@ -47,6 +56,9 @@ describe("variance rail labels: outer-tip placement (positive above / negative b
   });
 
   test("max positive bar on the first rail: label clamps under the SVG top edge", () => {
+    // A reaches the band top (rail band starts at y=15): unclamped baseline
+    // would be 15 - 4 = 11 with a 12px font → glyph top at the SVG edge.
+    // Clamp = railFont.size + 2 = 14.
     const target = render([100, -50]);
     const labelA = railLabel(target, 0);
     expect(num(labelA, "y")).toBeGreaterThanOrEqual(14);

@@ -1,0 +1,49 @@
+table SCENARIO
+	lineageTag: b6e13137-a6ae-4f21-a3c7-dad1ad4307ee
+
+	column Ord
+		dataType: int64
+		isHidden
+		lineageTag: 9b4cf449-4812-4700-ab83-bfb433715cde
+		summarizeBy: none
+		isNameInferred
+		sourceColumn: [Ord]
+
+		annotation SummarizationSetBy = Automatic
+
+	column Scenario
+		dataType: string
+		lineageTag: be16d39e-73bb-4cc5-a43a-81da06984eb9
+		summarizeBy: none
+		isNameInferred
+		sourceColumn: [Scenario]
+		sortByColumn: Ord
+
+		annotation SummarizationSetBy = Automatic
+
+	column Value
+		dataType: double
+		formatString: #,##0
+		lineageTag: 1395427b-4f1d-4877-a948-0ccf0f4561ce
+		summarizeBy: sum
+		isNameInferred
+		sourceColumn: [Value]
+
+		annotation SummarizationSetBy = Automatic
+
+	partition SCENARIO = calculated
+		mode: import
+		source =
+				DATATABLE(
+				    "Ord", INTEGER,
+				    "Scenario", STRING,
+				    "Value", DOUBLE,
+				    {
+					{1, "AC", 108000},
+					{2, "BU", 112000},
+					{3, "FC", 110000}
+				    }
+				)
+
+	annotation PBI_ResultType = Table
+

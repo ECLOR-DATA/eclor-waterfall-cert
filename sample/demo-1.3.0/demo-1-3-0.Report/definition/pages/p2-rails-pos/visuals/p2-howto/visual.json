@@ -1,0 +1,67 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.10.0/schema.json",
+  "name": "p2-howto",
+  "position": {
+    "x": 48,
+    "y": 96,
+    "z": 514,
+    "height": 100,
+    "width": 1500,
+    "tabOrder": 5140
+  },
+  "visual": {
+    "visualType": "textbox",
+    "objects": {
+      "general": [
+        {
+          "properties": {
+            "paragraphs": [
+              {
+                "textRuns": [
+                  {
+                    "value": " ",
+                    "textStyle": {
+                      "fontSize": "13pt",
+                      "color": "#5E5E5E"
+                    }
+                  },
+                  {
+                    "value": "Volet Format → Variance → Layout → Position. ",
+                    "textStyle": {
+                      "fontSize": "13pt",
+                      "color": "#091612",
+                      "fontWeight": "bold"
+                    }
+                  },
+                  {
+                    "value": "Deux rails : Δ M-1 (absolu) et Δ M-1 % (ratio, lu sur le sous-total X du moteur). À gauche la position historique (Top). À droite Bottom : l'ordre devient graphe → étiquettes X → rails, et le rail Δ M-1 % passe en Pin via l'override par mesure (Format → Variance — per measure → Δ M-1 % → Style).",
+                    "textStyle": {
+                      "fontSize": "13pt",
+                      "color": "#5E5E5E"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

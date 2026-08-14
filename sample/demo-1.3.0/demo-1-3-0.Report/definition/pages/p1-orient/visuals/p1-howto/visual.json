@@ -1,0 +1,67 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.10.0/schema.json",
+  "name": "p1-howto",
+  "position": {
+    "x": 48,
+    "y": 96,
+    "z": 509,
+    "height": 100,
+    "width": 1500,
+    "tabOrder": 5090
+  },
+  "visual": {
+    "visualType": "textbox",
+    "objects": {
+      "general": [
+        {
+          "properties": {
+            "paragraphs": [
+              {
+                "textRuns": [
+                  {
+                    "value": " ",
+                    "textStyle": {
+                      "fontSize": "13pt",
+                      "color": "#5E5E5E"
+                    }
+                  },
+                  {
+                    "value": "Volet Format → General → Orientation. ",
+                    "textStyle": {
+                      "fontSize": "13pt",
+                      "color": "#091612",
+                      "fontWeight": "bold"
+                    }
+                  },
+                  {
+                    "value": "Mêmes données, mêmes réglages : seule l'orientation change. En vertical les catégories descendent de haut en bas, l'axe des valeurs passe en haut, la table Analysis devient un bloc de colonnes à gauche et le rail de variance une colonne à droite. Limite 1.2.0.0 assumée : en vertical les styles de rails et de remplissage retombent silencieusement sur « barres pleines » / « solide ».",
+                    "textStyle": {
+                      "fontSize": "13pt",
+                      "color": "#5E5E5E"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

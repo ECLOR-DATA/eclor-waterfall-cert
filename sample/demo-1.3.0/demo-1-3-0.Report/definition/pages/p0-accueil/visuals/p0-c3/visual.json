@@ -1,0 +1,121 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.10.0/schema.json",
+  "name": "p0-c3",
+  "position": {
+    "x": 1288,
+    "y": 262,
+    "z": 506,
+    "height": 500,
+    "width": 584,
+    "tabOrder": 5060
+  },
+  "visual": {
+    "visualType": "textbox",
+    "objects": {
+      "general": [
+        {
+          "properties": {
+            "paragraphs": [
+              {
+                "textRuns": [
+                  {
+                    "value": "Le modèle",
+                    "textStyle": {
+                      "fontSize": "13pt",
+                      "color": "#091612",
+                      "fontWeight": "bold"
+                    }
+                  }
+                ]
+              },
+              {
+                "textRuns": [
+                  {
+                    "value": "",
+                    "textStyle": {
+                      "fontSize": "13pt",
+                      "color": "#5E5E5E"
+                    }
+                  }
+                ]
+              },
+              {
+                "textRuns": [
+                  {
+                    "value": "Repris tel quel du pbix soumis à Microsoft : Financial Sample (700 lignes) dépivoté en Category / Amount, coûts négatifs, tri par Order_Category ; calendrier DIM_TIME ; mesures Actual, Actual M-1, Δ M-1, Δ M-1 %, Ratio to Gross Sales et les mesures couleur _Color_*.",
+                    "textStyle": {
+                      "fontSize": "13pt",
+                      "color": "#5E5E5E"
+                    }
+                  }
+                ]
+              },
+              {
+                "textRuns": [
+                  {
+                    "value": "Un seul ajout : Actual M-2",
+                    "textStyle": {
+                      "fontSize": "13pt",
+                      "color": "#091612",
+                      "fontWeight": "bold"
+                    }
+                  }
+                ]
+              },
+              {
+                "textRuns": [
+                  {
+                    "value": "CALCULATE([Actual], DATEADD(DIM_TIME[Date], -2, MONTH)) — même idiome que Actual M-1. Nécessaire parce que « masquer un segment » n'est défini qu'en comparaison à M ≥ 3 mesures : il faut trois niveaux pour que deux segments existent.",
+                    "textStyle": {
+                      "fontSize": "13pt",
+                      "color": "#5E5E5E"
+                    }
+                  }
+                ]
+              },
+              {
+                "textRuns": [
+                  {
+                    "value": "Contexte temporel",
+                    "textStyle": {
+                      "fontSize": "13pt",
+                      "color": "#091612",
+                      "fontWeight": "bold"
+                    }
+                  }
+                ]
+              },
+              {
+                "textRuns": [
+                  {
+                    "value": "Le segment YearMonth (synchronisé sur toutes les pages) est calé sur 2026-12 — le mois du pbix publié. M-1 = 2026-11, M-2 = 2026-10, tous deux peuplés.",
+                    "textStyle": {
+                      "fontSize": "13pt",
+                      "color": "#5E5E5E"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

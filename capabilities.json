@@ -112,6 +112,15 @@
             ]
           }
         },
+        "orientation": {
+          "displayName": "Orientation",
+          "type": {
+            "enumeration": [
+              { "value": "horizontal", "displayName": "Horizontal" },
+              { "value": "vertical", "displayName": "Vertical" }
+            ]
+          }
+        },
         "showItemsWithNoData": {
           "displayName": "Show items with no data",
           "type": { "bool": true }
@@ -387,12 +396,83 @@
           "displayName": "Pillar color",
           "type": { "fill": { "solid": { "color": true } } }
         },
+        "pillarFillStyle": {
+          "displayName": "Fill style",
+          "type": {
+            "enumeration": [
+              { "value": "solid", "displayName": "Solid" },
+              { "value": "outlined", "displayName": "Outlined" },
+              { "value": "hatched", "displayName": "Hatched" }
+            ]
+          }
+        },
+        "fillStyle": {
+          "displayName": "Fill style",
+          "type": {
+            "enumeration": [
+              { "value": "default", "displayName": "(default)" },
+              { "value": "solid", "displayName": "Solid" },
+              { "value": "outlined", "displayName": "Outlined" },
+              { "value": "hatched", "displayName": "Hatched" }
+            ]
+          }
+        },
+        "outlineShow": { "displayName": "Show outline", "type": { "bool": true } },
+        "outlineColor": {
+          "displayName": "Outline color",
+          "type": { "fill": { "solid": { "color": true } } }
+        },
+        "outlineWidth": {
+          "displayName": "Outline width (px)",
+          "type": { "numeric": true }
+        },
+        "outlineStyle": {
+          "displayName": "Outline style",
+          "type": {
+            "enumeration": [
+              { "value": "solid", "displayName": "Solid" },
+              { "value": "dashed", "displayName": "Dashed" }
+            ]
+          }
+        },
+        "outlineMode": {
+          "displayName": "Outline (per pillar)",
+          "type": {
+            "enumeration": [
+              { "value": "default", "displayName": "(default)" },
+              { "value": "on", "displayName": "Show" },
+              { "value": "off", "displayName": "Hide" }
+            ]
+          }
+        },
+        "outlineColorOverride": {
+          "displayName": "Outline color (per pillar)",
+          "type": { "fill": { "solid": { "color": true } } }
+        },
+        "outlineWidthOverride": {
+          "displayName": "Outline width (per pillar)",
+          "type": { "numeric": true }
+        },
+        "outlineStyleOverride": {
+          "displayName": "Outline style (per pillar)",
+          "type": {
+            "enumeration": [
+              { "value": "default", "displayName": "(default)" },
+              { "value": "solid", "displayName": "Solid" },
+              { "value": "dashed", "displayName": "Dashed" }
+            ]
+          }
+        },
         "colorPillarLabel": {
           "displayName": "Pillar label color",
           "type": { "fill": { "solid": { "color": true } } }
         },
         "isPillar": {
           "displayName": "Pillar (per category)",
+          "type": { "bool": true }
+        },
+        "showBridgesBefore": {
+          "displayName": "Show bridges before this pillar",
           "type": { "bool": true }
         },
         "measureFillColor": {
@@ -605,6 +685,33 @@
       "displayNameKey": "Visual_Rails",
       "properties": {
         "showDataLabels": { "displayName": "Show data labels", "type": { "bool": true } },
+        "position": {
+          "displayName": "Position",
+          "type": {
+            "enumeration": [
+              { "value": "top", "displayName": "Top" },
+              { "value": "bottom", "displayName": "Bottom" }
+            ]
+          }
+        },
+        "railStyle": {
+          "displayName": "Style",
+          "type": {
+            "enumeration": [
+              { "value": "bars", "displayName": "Bars (classic)" },
+              { "value": "pin", "displayName": "Pin (IBCS)" },
+              { "value": "labels", "displayName": "Labels only" },
+              { "value": "chips", "displayName": "Chips" },
+              { "value": "outlined", "displayName": "Outlined bars" },
+              { "value": "hatched", "displayName": "Hatched bars" },
+              { "value": "auto", "displayName": "Auto (by format)" }
+            ]
+          }
+        },
+        "neutralThresholdPct": {
+          "displayName": "Neutral threshold (% of max)",
+          "type": { "numeric": true }
+        },
         "railHeight": {
           "displayName": "Rail height (px)",
           "type": { "numeric": true }
@@ -648,6 +755,18 @@
         "name": {
           "displayName": "Title",
           "type": { "text": true }
+        },
+        "style": {
+          "displayName": "Style",
+          "type": {
+            "enumeration": [
+              { "value": "default", "displayName": "(default)" },
+              { "value": "bars", "displayName": "Bars" },
+              { "value": "pin", "displayName": "Pin" },
+              { "value": "labels", "displayName": "Labels only" },
+              { "value": "chips", "displayName": "Chips" }
+            ]
+          }
         },
         "colorPos": {
           "displayName": "Positive bar color",
@@ -788,6 +907,18 @@
         },
         "maxHeightPct": {
           "displayName": "Max height (% of visual)",
+          "type": { "numeric": true }
+        },
+        "columnWidth": {
+          "displayName": "Column width (px, 0 = auto)",
+          "type": { "numeric": true }
+        },
+        "rowHeaderWidth": {
+          "displayName": "Row header width (px, 0 = auto)",
+          "type": { "numeric": true }
+        },
+        "headerLines": {
+          "displayName": "Header lines (1 = no wrap)",
           "type": { "numeric": true }
         }
       }

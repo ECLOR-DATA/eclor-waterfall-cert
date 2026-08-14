@@ -1,0 +1,67 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.10.0/schema.json",
+  "name": "p5-howto",
+  "position": {
+    "x": 48,
+    "y": 96,
+    "z": 535,
+    "height": 100,
+    "width": 1500,
+    "tabOrder": 5350
+  },
+  "visual": {
+    "visualType": "textbox",
+    "objects": {
+      "general": [
+        {
+          "properties": {
+            "paragraphs": [
+              {
+                "textRuns": [
+                  {
+                    "value": " ",
+                    "textStyle": {
+                      "fontSize": "13pt",
+                      "color": "#5E5E5E"
+                    }
+                  },
+                  {
+                    "value": "Volet Format → Pillars → <mesure> (groupe pillarsMeasure_…). ",
+                    "textStyle": {
+                      "fontSize": "13pt",
+                      "color": "#091612",
+                      "fontWeight": "bold"
+                    }
+                  },
+                  {
+                    "value": "En comparaison avec dimension et M ≥ 2 mesures, les piliers SONT les mesures : jusqu'en 1.2.0.0 seule la couleur était réglable, le style de remplissage disparaissait et le contour n'était jamais surchargeable. Chaque pilier a désormais un groupe unique portant couleur → style → échelle de contour, chaque cran indépendamment surchargeable ((default) hérite du global au caractère près).",
+                    "textStyle": {
+                      "fontSize": "13pt",
+                      "color": "#5E5E5E"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

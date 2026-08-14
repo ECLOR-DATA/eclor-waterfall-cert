@@ -1,3 +1,22 @@
+/**
+ * Systematic combination sweep — legends × arcs × cumulative/comparison ×
+ * table × grand total × pillar configs × value signs, over BOTH DataView
+ * shapes (categorical harness + matrix synthesis, the runtime truth since
+ * 1.1.49). Each combo asserts machine-checkable invariants instead of
+ * pixel expectations:
+ *
+ *   I1  render survives (no <parsererror>, svg present unless error-state)
+ *   I2  bar count = cats (+ synth GT / comparison anchors)
+ *   I3  Σ table cells per column = the column's rendered actual (CLAUDE.md
+ *       math invariant; GT column included since 1.1.62)
+ *   I4  GT bar carries the FINAL RUNNING total (pillar resets, bridge adds)
+ *   I5  arc arrows = 2 × (pillars-in-items − 1) (default arrowEnds "both")
+ *   I6  getFormattingModel() never throws; built group uids stay unique
+ *       (host caches pane state on them — a collision corrupts the pane)
+ *
+ * Plus: sequence staleness (field add/remove, GT toggle), focus filtering
+ * with GT, and negative-running GT layout.
+ */
 
 import { makeVisual, dvBuild, mtxBuild, MtxNodeSpec } from "./_harness";
 
@@ -16,6 +35,9 @@ interface Combo {
   gt: boolean;
   pillars: PillarCfg;
   sign: Sign;
+  /** Actual-measure count (comparison only; default 2). M≥3 exercises the
+   *  blockSize = 1 + N column mapping the M=2 special case silently hides
+   *  (CLAUDE.md math-invariant gotcha). */
   m?: number;
 }
 
@@ -31,6 +53,7 @@ const TOTALS: Record<Sign, number[]> = {
 const label = (c: Combo): string =>
   `${c.shape}/${c.mode}/lg=${c.legend ? 1 : 0}/ad=${c.adim ? 1 : 0}/gt=${c.gt ? 1 : 0}/${c.pillars}/${c.sign}`;
 
+/** Split a category total across its leaves so Σ leaves === total. */
 function splitLeaves(total: number, leafCount: number): number[] {
   const out = new Array(leafCount).fill(7) as number[];
   out[0] = total - 7 * (leafCount - 1);
@@ -199,13 +222,14 @@ function checkCombo(c: Combo): string[] {
     const expectedBars =
       c.mode === "cumulative"
         ? CAT_NAMES.length + (c.gt ? 1 : 0)
-        : mCount + (mCount - 1) * CAT_NAMES.length;
+        : mCount + (mCount - 1) * CAT_NAMES.length; // synth block layout
     if (bars !== expectedBars) fail(`bars=${bars} expected=${expectedBars}`);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const items: any[] = v.lastValidRenderInput?.layout?.items || [];
     if (items.length !== expectedBars) fail(`layout items=${items.length} expected=${expectedBars}`);
 
+    // I4 — grand total value (cumulative only; never in comparison).
     const gtItems = items.filter((it) => it.label === "Grand total");
     if (c.mode === "comparison" || !c.gt) {
       if (gtItems.length !== 0) fail(`unexpected GT bar (${gtItems.length})`);
@@ -217,6 +241,7 @@ function checkCombo(c: Combo): string[] {
       }
     }
 
+    // I5 — arrow paths = 2 × arcs, arcs = pillars-in-items − 1.
     const pillarsInItems = items.filter((it) => it.type === "pillar").length;
     const expectedArrows = Math.max(0, pillarsInItems - 1) * 2;
     const arrows = target.querySelectorAll(`path[fill="${ARC}"]`).length;
@@ -224,6 +249,7 @@ function checkCombo(c: Combo): string[] {
       fail(`arc arrows=${arrows} expected=${expectedArrows} (pillars=${pillarsInItems})`);
     }
 
+    // I3 — Σ cells per column === the column's rendered actual.
     if (c.adim) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cells: number[][] = v.cachedAnalysisCells;
@@ -242,6 +268,7 @@ function checkCombo(c: Combo): string[] {
     }
   }
 
+  // I6 — pane pipeline (build + relayout) survives; built uids unique.
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const fm: any = v.getFormattingModel();
@@ -264,7 +291,7 @@ function checkCombo(c: Combo): string[] {
 function sweep(shape: Shape, mode: Mode, m?: number): string[] {
   const errs: string[] = [];
   const pillarCfgs: PillarCfg[] = mode === "cumulative" ? ["default", "none", "mid"] : ["default"];
-  const gts = mode === "cumulative" ? [true, false] : [true];
+  const gts = mode === "cumulative" ? [true, false] : [true]; // comparison: assert GT never appears
   for (const legend of [false, true]) {
     for (const adim of [false, true]) {
       for (const sign of ["pos", "mixed", "neg"] as Sign[]) {
@@ -310,7 +337,7 @@ describe("stress edges — M extremes, zeros, nulls, blanks, single category", (
       mode: "comparison",
       legend: false,
       adim: true,
-      gt: true,
+      gt: true, // must stay inert in comparison
       pillars: "default",
       sign: "pos",
       m: 1
@@ -323,7 +350,8 @@ describe("stress edges — M extremes, zeros, nulls, blanks, single category", (
     const items: any[] = v.lastValidRenderInput.layout.items;
     expect(items.filter((it) => it.type === "pillar").length).toBe(2);
     expect(items.some((it) => it.label === "Grand total")).toBe(false);
-    expect(target.querySelectorAll(`path[fill="${ARC}"]`).length).toBe(2);
+    expect(target.querySelectorAll(`path[fill="${ARC}"]`).length).toBe(2); // 1 arc × both
+    // Σ cells per column still equals the rendered actual.
     for (let col = 0; col < items.length; col++) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const colSum = v.cachedAnalysisCells.reduce(
@@ -358,7 +386,7 @@ describe("stress edges — M extremes, zeros, nulls, blanks, single category", (
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const dv: any = dvBuild({
       cats: [{ name: "Cat", values: ["A", "B", "C"] }],
-      vals: [{ name: "M1", role: "actual", values: [0, 30, 50] }]
+      vals: [{ name: "M1", role: "actual", values: [0, 30, 50] }] // A pillar = 0
     });
     dv.metadata.objects = {
       grandTotal: { showGrandTotal: true },
@@ -443,7 +471,7 @@ describe("stress edges — M extremes, zeros, nulls, blanks, single category", (
     const items: any[] = v.lastValidRenderInput.layout.items;
     expect(items[1].label).toBe("Grand total");
     expect(items[1].actualVal).toBe(100);
-    expect(target.querySelectorAll(`path[fill="${ARC}"]`).length).toBe(2);
+    expect(target.querySelectorAll(`path[fill="${ARC}"]`).length).toBe(2); // 1 arc
   });
 
   test("legend with a blank member: '(blank)' strip label, unique legend_N groups", () => {
@@ -482,7 +510,7 @@ describe("stress edges — M extremes, zeros, nulls, blanks, single category", (
         {
           name: "Cat",
           values: ["A", "B", "C"],
-          objects: [{}, {}, { variationArc: { showArc: false } }]
+          objects: [{}, {}, { variationArc: { showArc: false } }] // C = destination of A→C? no: pillars A,C → arc A→C killed
         }
       ],
       vals: [{ name: "M1", role: "actual", values: [100, 20, 150] }]
@@ -494,7 +522,9 @@ describe("stress edges — M extremes, zeros, nulls, blanks, single category", (
     v.update({ dataViews: [dv], viewport: VIEW, type: 2 });
     const target = v.target as HTMLElement;
     expect(target.querySelector("parsererror")).toBeNull();
-    expect(target.querySelectorAll(`path[fill="${ARC}"]`).length).toBe(2);
+    // Pillars in items: A, C, GT → arcs A→C (killed by C.showArc=false) and
+    // C→GT (no persistence target on the synth GT → always shown).
+    expect(target.querySelectorAll(`path[fill="${ARC}"]`).length).toBe(2); // 1 surviving arc
   });
 });
 
@@ -563,13 +593,16 @@ describe("stress focus — table-row focus with GT + legend", () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const fullItems: any[] = v.lastValidRenderInput.layout.items;
     const fullGt = fullItems[fullItems.length - 1].actualVal;
-    expect(fullGt).toBe(150);
+    expect(fullGt).toBe(150); // C is the last default pillar
 
-    v.renderWaterfall(v.cachedParsed, new Set([0]));
+    v.renderWaterfall(v.cachedParsed, new Set([0])); // focus adim row "P"
     expect((v.target as HTMLElement).querySelector("parsererror")).toBeNull();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const focusedItems: any[] = v.lastValidRenderInput.layout.items;
+    // Row P per category: leaves [P of X, P of Y]. C total = 150 split over
+    // 4 leaves (X/P=129, X/Q=7, Y/P=7, Y/Q=7) → P-focused C = 129+7 = 136.
     expect(focusedItems[focusedItems.length - 1].actualVal).toBe(136);
+    // Table cells stay FULL (they're computed from the unfiltered parse).
     const colSum = (col: number): number =>
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       v.cachedAnalysisCells.reduce((s: number, row: number[]) => s + (row[col] ?? 0), 0);
@@ -655,10 +688,11 @@ describe("stress legend — positions, scale, HC interplay", () => {
   test("high contrast + GT + legend scope=bridges: every bar rect (flat pillars, stacked bridges, GT) is forced to the HC foreground", () => {
     const HC_FG = "#ffff00";
     const target = document.createElement("div");
+    // Mirror the highcontrast suite's host shim (palette flags + colours).
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const host: any = {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ...(
+      ...( // reuse makeVisual's host by building a throwaway visual first
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (makeVisual() as any).host
       ),
@@ -712,7 +746,7 @@ describe("stress layout — negative running grand totals", () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const items: any[] = v.lastValidRenderInput.layout.items;
     const gt = items[items.length - 1];
-    expect(gt.actualVal).toBe(-20);
+    expect(gt.actualVal).toBe(-20); // 100 − 150 + 30
     expect(gt.type).toBe("pillar");
     expect(gt.y0).toBe(-20);
     expect(gt.y1).toBe(0);
@@ -734,6 +768,7 @@ describe("stress layout — negative running grand totals", () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const items: any[] = v.lastValidRenderInput.layout.items;
     const gt = items[items.length - 1];
+    // A bridge −100 → B pillar −20 (reset) → C bridge −150 → GT −170.
     expect(gt.actualVal).toBe(-170);
   });
 });

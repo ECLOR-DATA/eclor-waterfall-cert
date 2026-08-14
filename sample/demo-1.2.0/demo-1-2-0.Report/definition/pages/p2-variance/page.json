@@ -1,0 +1,8 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/page/2.0.0/schema.json",
+  "name": "p2-variance",
+  "displayName": "2 · Variance : position & styles",
+  "displayOption": "FitToPage",
+  "height": 1080,
+  "width": 1920
+}

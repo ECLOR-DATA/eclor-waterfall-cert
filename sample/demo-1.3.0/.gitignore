@@ -1,0 +1,7 @@
+# Per-user / per-machine Power BI Desktop state
+**/.pbi/localSettings.json
+
+# cache.abf stays ignored (repo-wide rule): unlike sample/demo-1.2.0, this
+# report runs on the REAL published model — an import from
+# sample/base/Financial Sample.xlsx — so the cache would be a stale copy of
+# data that already lives in the repo. First open needs one refresh.

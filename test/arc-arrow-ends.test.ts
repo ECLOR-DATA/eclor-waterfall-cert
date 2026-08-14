@@ -1,8 +1,16 @@
+/**
+ * Per-arc "Arrow ends" override (1.1.66) — mirrors the 1.1.58 showArc
+ * mechanism: persisted on the DESTINATION pillar (per category in
+ * cumulative, per measure for comparison anchors), falling back to the
+ * global variationArc.arrowEnds when the arc never picked its own.
+ */
 
 import { makeVisual, dvBuild } from "./_harness";
 
 const ARC_COLOR = "#123456";
 
+// Arrow paths are the only fill-painted paths in the arc colour. The tip is
+// the LAST "L x y" coordinate pair before the closing z.
 function arrowTipXs(target: HTMLElement): number[] {
   return Array.from(target.querySelectorAll(`path[fill="${ARC_COLOR}"]`)).map((p) => {
     const d = p.getAttribute("d") || "";
@@ -22,6 +30,7 @@ function render(dv: any): HTMLElement {
   return target;
 }
 
+// 2 explicit pillars; destination B optionally carries the per-arc override.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function cumulativeDv(destArrowEnds?: string, globalArrowEnds?: string): any {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -56,13 +65,14 @@ describe("per-arc arrowEnds — cumulative (persisted on the destination categor
   test("destination override 'end' → single arrow on the ARRIVAL pillar despite global 'both'", () => {
     const tips = arrowTipXs(render(cumulativeDv("end")));
     expect(tips.length).toBe(1);
+    // Arrival pillar = right half of the 640px viewport.
     expect(tips[0]).toBeGreaterThan(320);
   });
 
   test("destination override 'start' beats a DIFFERENT global ('end')", () => {
     const tips = arrowTipXs(render(cumulativeDv("start", "end")));
     expect(tips.length).toBe(1);
-    expect(tips[0]).toBeLessThan(320);
+    expect(tips[0]).toBeLessThan(320); // departure pillar, left half
   });
 
   test("no override → the arc follows the global ('start')", () => {
@@ -93,6 +103,7 @@ describe("per-arc arrowEnds — comparison (persisted on the destination MEASURE
       variationArc: { show: true, lineColor: { solid: { color: ARC_COLOR } } }
     };
     const tips = arrowTipXs(render(dv));
+    // M1→M2 contributes 1 arrow (end only), M2→M3 keeps the global 2.
     expect(tips.length).toBe(3);
   });
 });
@@ -111,7 +122,7 @@ describe("per-arc arrowEnds — format-pane group", () => {
     const arcGroups = v.formattingSettings.variationArc.groups.filter((g: any) =>
       String(g.name).startsWith("arcDest")
     );
-    expect(arcGroups.length).toBe(1);
+    expect(arcGroups.length).toBe(1); // A→B
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const dd = arcGroups[0].slices.find((s: any) => s.name === "arrowEnds");
     expect(dd).toBeTruthy();
@@ -119,6 +130,6 @@ describe("per-arc arrowEnds — format-pane group", () => {
     expect(dd.value.value).toBe("end");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const toggle = arcGroups[0].slices.find((s: any) => s.name === "showArc");
-    expect(toggle).toBeTruthy();
+    expect(toggle).toBeTruthy(); // the 1.1.58 slice still rides along
   });
 });

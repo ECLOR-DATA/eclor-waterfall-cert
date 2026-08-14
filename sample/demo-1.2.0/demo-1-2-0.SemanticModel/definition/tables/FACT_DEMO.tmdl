@@ -1,0 +1,85 @@
+table FACT_DEMO
+	lineageTag: 716035a4-9565-45c7-aa46-2562210f5a65
+
+	column Ord
+		dataType: int64
+		isHidden
+		lineageTag: 9bf8a2ae-1e81-4823-ab0e-3436b2c03ee6
+		summarizeBy: none
+		isNameInferred
+		sourceColumn: [Ord]
+
+		annotation SummarizationSetBy = Automatic
+
+	column Step
+		dataType: string
+		lineageTag: 565f658b-c53d-48ac-a653-f92923ae4f22
+		summarizeBy: none
+		isNameInferred
+		sourceColumn: [Step]
+		sortByColumn: Ord
+
+		annotation SummarizationSetBy = Automatic
+
+	column Segment
+		dataType: string
+		lineageTag: c29156fd-228c-442d-a093-a23ffbb9e573
+		summarizeBy: none
+		isNameInferred
+		sourceColumn: [Segment]
+
+		annotation SummarizationSetBy = Automatic
+
+	column Amount
+		dataType: double
+		formatString: #,##0
+		lineageTag: 193c0c06-6008-4442-a7ae-3dfb2bfe69a9
+		summarizeBy: sum
+		isNameInferred
+		sourceColumn: [Amount]
+
+		annotation SummarizationSetBy = Automatic
+
+	column AmountLY
+		dataType: double
+		formatString: #,##0
+		lineageTag: 8eef07f4-5ce1-4a93-ace0-183bb3747fad
+		summarizeBy: sum
+		isNameInferred
+		sourceColumn: [AmountLY]
+
+		annotation SummarizationSetBy = Automatic
+
+	partition FACT_DEMO = calculated
+		mode: import
+		source =
+				DATATABLE(
+				    "Ord", INTEGER,
+				    "Step", STRING,
+				    "Segment", STRING,
+				    "Amount", DOUBLE,
+				    "AmountLY", DOUBLE,
+				    {
+					{1, "FY24", "Retail", 50000, 47000},
+					{1, "FY24", "Wholesale", 30000, 28000},
+					{1, "FY24", "Digital", 20000, 19000},
+					{2, "Volume", "Retail", 6000, 5000},
+					{2, "Volume", "Wholesale", 4000, 3400},
+					{2, "Volume", "Digital", 2000, 1800},
+					{3, "Price", "Retail", 3000, 4000},
+					{3, "Price", "Wholesale", 3000, 4000},
+					{3, "Price", "Digital", 2000, 2400},
+					{4, "Mix", "Retail", -2000, -2000},
+					{4, "Mix", "Wholesale", -2000, -2100},
+					{4, "Mix", "Digital", -1000, -1200},
+					{5, "Churn", "Retail", -4000, -3000},
+					{5, "Churn", "Wholesale", -2000, -1800},
+					{5, "Churn", "Digital", -1000, -1000},
+					{6, "FY25", "Retail", 53000, 51000},
+					{6, "FY25", "Wholesale", 33000, 31500},
+					{6, "FY25", "Digital", 22000, 21000}
+				    }
+				)
+
+	annotation PBI_ResultType = Table
+

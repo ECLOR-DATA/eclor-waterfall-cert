@@ -4,5 +4,6 @@ dist
 coverage
 releases
 test
+.claude
 webpack.statistics.*.html
 jest.config.js

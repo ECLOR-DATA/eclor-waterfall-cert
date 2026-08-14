@@ -1,0 +1,67 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.10.0/schema.json",
+  "name": "p4-howto",
+  "position": {
+    "x": 48,
+    "y": 96,
+    "z": 530,
+    "height": 100,
+    "width": 1500,
+    "tabOrder": 5300
+  },
+  "visual": {
+    "visualType": "textbox",
+    "objects": {
+      "general": [
+        {
+          "properties": {
+            "paragraphs": [
+              {
+                "textRuns": [
+                  {
+                    "value": " ",
+                    "textStyle": {
+                      "fontSize": "13pt",
+                      "color": "#5E5E5E"
+                    }
+                  },
+                  {
+                    "value": "Volet Format → Pillars → Colors → Fill style, → Outline, et par catégorie → Fill style. ",
+                    "textStyle": {
+                      "fontSize": "13pt",
+                      "color": "#091612",
+                      "fontWeight": "bold"
+                    }
+                  },
+                  {
+                    "value": "À gauche le global reste Solid et chaque pilier porte son propre override — la notation scénario IBCS (AC plein, BU contour, FC hachuré). À droite le global passe en Hatched et le groupe Outline force un contour encre 2,5 px pointillé sur tous les piliers.",
+                    "textStyle": {
+                      "fontSize": "13pt",
+                      "color": "#5E5E5E"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

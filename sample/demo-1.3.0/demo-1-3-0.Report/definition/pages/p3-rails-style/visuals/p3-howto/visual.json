@@ -1,0 +1,67 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.10.0/schema.json",
+  "name": "p3-howto",
+  "position": {
+    "x": 48,
+    "y": 96,
+    "z": 519,
+    "height": 100,
+    "width": 1500,
+    "tabOrder": 5190
+  },
+  "visual": {
+    "visualType": "textbox",
+    "objects": {
+      "general": [
+        {
+          "properties": {
+            "paragraphs": [
+              {
+                "textRuns": [
+                  {
+                    "value": " ",
+                    "textStyle": {
+                      "fontSize": "13pt",
+                      "color": "#5E5E5E"
+                    }
+                  },
+                  {
+                    "value": "Volet Format → Variance → Layout → Style / Neutral threshold (% of max). ",
+                    "textStyle": {
+                      "fontSize": "13pt",
+                      "color": "#091612",
+                      "fontWeight": "bold"
+                    }
+                  },
+                  {
+                    "value": "Même mesure Δ M-1 partout (sauf « Auto » qui reçoit aussi Δ M-1 % pour montrer le routage par format : % → pin, absolu → bars). Le seuil grise géométrie ET texte des rails dont |valeur| passe sous le seuil, en pourcentage du plus gros écart du rail.",
+                    "textStyle": {
+                      "fontSize": "13pt",
+                      "color": "#5E5E5E"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

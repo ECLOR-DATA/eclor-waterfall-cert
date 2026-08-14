@@ -1,0 +1,9 @@
+# Per-user / per-machine Power BI Desktop state
+**/.pbi/localSettings.json
+
+# cache.abf is ignored repo-wide, but this demo MUST ship it: the model is three
+# pure DAX calculated tables with no external source, so the cache is tiny (~19 kB)
+# and deterministic — and it is the only thing that stops Desktop from showing
+# "One or more calculated tables need to be manually refreshed" on first open.
+# Zero-setup is the point of this sample, so the rule is negated here.
+!**/.pbi/cache.abf

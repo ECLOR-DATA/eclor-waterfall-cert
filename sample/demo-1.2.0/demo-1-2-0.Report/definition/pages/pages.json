@@ -1,0 +1,10 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/pagesMetadata/1.0.0/schema.json",
+  "pageOrder": [
+    "p0-accueil",
+    "p1-orientation",
+    "p2-variance",
+    "p3-piliers"
+  ],
+  "activePageName": "p0-accueil"
+}

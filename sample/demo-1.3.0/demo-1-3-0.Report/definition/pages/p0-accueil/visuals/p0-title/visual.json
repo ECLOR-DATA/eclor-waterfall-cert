@@ -1,0 +1,64 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.10.0/schema.json",
+  "name": "p0-title",
+  "position": {
+    "x": 140,
+    "y": 28,
+    "z": 502,
+    "height": 120,
+    "width": 1732,
+    "tabOrder": 5020
+  },
+  "visual": {
+    "visualType": "textbox",
+    "objects": {
+      "general": [
+        {
+          "properties": {
+            "paragraphs": [
+              {
+                "textRuns": [
+                  {
+                    "value": "Eclor Waterfall 1.2.0.0 → 1.3.1.0 — toutes les nouveautés depuis la certification",
+                    "textStyle": {
+                      "fontSize": "26pt",
+                      "color": "#091612",
+                      "fontWeight": "bold"
+                    }
+                  }
+                ]
+              },
+              {
+                "textRuns": [
+                  {
+                    "value": "Modèle et thème identiques au pbix publié sur AppSource (1.1.76.0) : FACT_ECLOR_FINANCIALS ⟵ DIM_TIME + _MEASURES, thème « eclor — Light ». Aucun jeu de données inventé.",
+                    "textStyle": {
+                      "fontSize": "13pt",
+                      "color": "#5E5E5E"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

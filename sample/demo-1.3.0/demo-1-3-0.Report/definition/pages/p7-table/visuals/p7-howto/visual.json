@@ -1,0 +1,67 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.10.0/schema.json",
+  "name": "p7-howto",
+  "position": {
+    "x": 48,
+    "y": 96,
+    "z": 546,
+    "height": 100,
+    "width": 1500,
+    "tabOrder": 5460
+  },
+  "visual": {
+    "visualType": "textbox",
+    "objects": {
+      "general": [
+        {
+          "properties": {
+            "paragraphs": [
+              {
+                "textRuns": [
+                  {
+                    "value": " ",
+                    "textStyle": {
+                      "fontSize": "13pt",
+                      "color": "#5E5E5E"
+                    }
+                  },
+                  {
+                    "value": "Volet Format → Analysis table → Layout → Row header width / Column width / Header lines. ",
+                    "textStyle": {
+                      "fontSize": "13pt",
+                      "color": "#091612",
+                      "fontWeight": "bold"
+                    }
+                  },
+                  {
+                    "value": "La dimension Segment porte des libellés longs (« Channel Partners », « Small Business ») que la largeur automatique tronque, parce qu'elle échantillonne la CELLULE la plus large et jamais l'en-tête. Deux remèdes : une largeur explicite, qui BAT les plafonds automatiques (34 % de la largeur en horizontal, maxHeightPct en vertical) ; et depuis la 1.3.1.0 le retour à la ligne, qui inverse la dépendance — l'en-tête s'adapte à la bande au lieu que la bande s'adapte à l'en-tête, donc une colonne PLUS étroite suffit. Le graphe n'est jamais affamé : 120 px de zone de tracé sont réservés quoi qu'il arrive.",
+                    "textStyle": {
+                      "fontSize": "13pt",
+                      "color": "#5E5E5E"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

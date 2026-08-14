@@ -27,7 +27,7 @@ eclor-waterfall/
 # ── Repo support (not shipped) ──
 ├── test/                    # Jest suites
 ├── sample/                  # CSV demo data + .pbix instructions
-├── docs/                    # PRIVACY.md + CERT_AUDIT.md
+├── docs/                    # PRIVACY.md, CERT_AUDIT.md, APPSOURCE_LISTING.md, …
 ├── tools/audit-render.mjs   # Offline SVG → PNG render
 ├── releases/                # Packaged .pbiviz artifacts
 ├── .github/workflows/ci.yml # lint → tsc → jest → pbiviz package
@@ -191,6 +191,16 @@ SVG text baseline is **not** the top of the glyph. Segoe UI / Arial place glyph 
 
 ---
 
+## AppSource / Partner Center listing metadata (mandatory)
+
+Partner Center requires three text fields for every Power BI visual offer. They are **not** part of the `.pbiviz` bundle (unlike the `pbiviz.json` `description`, which only feeds the in-product import dialog) and are easy to forget until submission:
+
+- **Summary** — one plain-text sentence, no line breaks, shown on the marketplace search-results page (~100-char budget).
+- **Description** — must cover (1) what the offer does, (2) the user who benefits, (3) the customer need/pain it solves. Enumerate the cert-relevant features (high-contrast, report-page tooltips, drill-down — audit G8).
+- **Keywords** — max 3, and they must appear **verbatim** in both the Summary and the Description.
+
+Repo copy lives in [docs/APPSOURCE_LISTING.md](docs/APPSOURCE_LISTING.md) — plain text, copy-paste-ready, and the collection point for the other listing artifacts (screenshot captions, video, categories, links). **For any future pbiviz submission, treat these three fields as a required deliverable alongside the packaged `.pbiviz`.**
+
 ## Constraints (don't violate)
 
 - **No CDN** — everything bundled locally (Microsoft cert requirement)
@@ -216,4 +226,4 @@ SVG text baseline is **not** the top of the glyph. Segoe UI / Arial place glyph 
 
 **TL;DR**: read this file (CONTEXT.md) for the **why** behind each design decision. The 21 decisions above are load-bearing — understand them before proposing a redesign.
 
-Last updated: 2026-07-04
+Last updated: 2026-07-05

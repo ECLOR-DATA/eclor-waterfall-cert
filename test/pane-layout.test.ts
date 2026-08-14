@@ -1,3 +1,15 @@
+// Pane re-layout layer (1.1.60) — src/paneLayout.ts.
+//
+// The re-layout is DISPLAY-ONLY: it re-arranges the BUILT formatting model
+// (cards merged, groups split, Show toggles promoted to headers) while every
+// slice keeps the persistence descriptor the utils bound (objectName =
+// settings-model card name). These tests pin the two contracts:
+//   1. INVARIANTS — no descriptor lost/duplicated/rewritten, reset-to-default
+//      descriptors follow their slices, uids stay unique and deterministic,
+//      unknown cards/slices survive (the future-proofing safety net).
+//   2. STRUCTURE — the target hierarchy: General absorbs Layout, Variance
+//      absorbs the per-measure card, axes/legend/table get native-style
+//      sub-groups, dynamic groups keep trailing their host card.
 
 import { FormattingSettingsService } from "powerbi-visuals-utils-formattingmodel";
 import { VisualFormattingSettingsModel } from "../src/settings";
@@ -11,6 +23,9 @@ function runUpdate(v: Any, dv: Any): void {
   v.update({ dataViews: [dv], viewport: { width: 640, height: 420 }, type: 2 });
 }
 
+/** Fresh service-level build (no Visual, no re-layout) — same pattern as
+ *  formatting-model.test.ts. Each call returns an independent model, so a
+ *  "before" build stays pristine while an "after" build gets re-layouted. */
 function builtModel(): Any {
   const svc = new FormattingSettingsService();
   const model = svc.populateFormattingSettingsModel(
@@ -20,13 +35,16 @@ function builtModel(): Any {
   return svc.buildFormattingModel(model);
 }
 
+/** Recursively collects every persistence descriptor reachable from the
+ *  cards' toggles + slices (composite slices like FontControl carry one
+ *  descriptor per sub-component). Sorted for multiset comparison. */
 function collectDescriptors(fm: Any): string[] {
   const found: string[] = [];
   const walk = (node: Any): void => {
     if (!node || typeof node !== "object") return;
     if (typeof node.objectName === "string" && typeof node.propertyName === "string") {
       found.push(`${node.objectName}.${node.propertyName}`);
-      return;
+      return; // descriptors don't nest
     }
     for (const k of Object.keys(node)) walk(node[k]);
   };
@@ -84,13 +102,14 @@ describe("relayoutPane — invariants (nothing lost, nothing rewritten)", () => 
     const before = collectDescriptors(builtModel());
     const after = collectDescriptors(relayoutPane(builtModel()));
     expect(after).toEqual(before);
-    expect(after.length).toBeGreaterThan(100);
+    expect(after.length).toBeGreaterThan(100); // sanity: the walk really walked
   });
 
   test("revert-to-default descriptors are preserved and follow merged cards", () => {
     const before = collectRevertDescriptors(builtModel());
     const fm = relayoutPane(builtModel());
     expect(collectRevertDescriptors(fm)).toEqual(before);
+    // barWidth's reset descriptor moved INTO the General card with its slice.
     const general = cardByUid(fm, "general-card");
     const generalReverts = general.revertToDefaultDescriptors.map(
       (d: Any) => `${d.objectName}.${d.propertyName}`
@@ -146,27 +165,32 @@ describe("relayoutPane — target structure (static build)", () => {
     expect(fm.cards.map((c: Any) => c.uid)).toEqual(EXPECTED_CARD_ORDER);
   });
 
-  test("General = mode + bar width + no-data, single headerless group", () => {
+  test("General = mode + orientation + bar width + no-data, single headerless group", () => {
     const general = cardByUid(relayoutPane(builtModel()), "general-card");
     expect(groupUids(general)).toEqual(["general-group"]);
     expect(sliceUids(general.groups[0])).toEqual([
       "general-mode",
+      "general-orientation",
       "layout-barWidth",
       "general-showItemsWithNoData"
     ]);
+    // Headerless top section — same convention as a SimpleCard implicit group.
     expect(general.groups[0].displayName).toBeUndefined();
   });
 
   test("Grand total = own card, show toggle on the header, label style sub-group", () => {
     const gt = cardByUid(relayoutPane(builtModel()), "grandTotal-card");
+    // showGrandTotal promoted to the card header (not a regular slice).
     expect(toggleDescriptor(gt)).toBe("grandTotal.showGrandTotal");
     expect(gt.groups.flatMap((g: Any) => sliceUids(g))).not.toContain("grandTotal-showGrandTotal");
     expect(groupUids(gt)).toEqual(["grandTotalGeneral-group", "grandTotalDataLabels-group"]);
+    // Top section: label text + bar colour, headerless.
     expect(gt.groups[0].displayName).toBeUndefined();
     expect(sliceUids(gt.groups[0])).toEqual([
       "grandTotal-grandTotalLabel",
       "grandTotal-grandTotalColor"
     ]);
+    // Data labels: dedicated label style (colour / font / background).
     expect(gt.groups[1].displayName).toBe("Data labels");
     expect(sliceUids(gt.groups[1])).toEqual([
       "grandTotal-grandTotalLabelColor",
@@ -182,6 +206,7 @@ describe("relayoutPane — target structure (static build)", () => {
     const x = cardByUid(fm, "xAxis-card");
     expect(toggleDescriptor(x)).toBe("xAxis.show");
     expect(groupUids(x)).toEqual(["xAxisValues-group", "xAxisTitle-group"]);
+    // The promoted slice must not remain as a regular slice.
     expect(x.groups.flatMap((g: Any) => sliceUids(g))).not.toContain("xAxis-show");
     expect(toggleDescriptor(x.groups[1])).toBe("xAxis.showTitle");
 
@@ -198,27 +223,41 @@ describe("relayoutPane — target structure (static build)", () => {
 
   test("bars: Colors + Data labels (toggle = showDataLabels) on Pillars and Bridges", () => {
     const fm = relayoutPane(builtModel());
-    for (const [cardUid, obj] of [
-      ["pillars-card", "pillars"],
-      ["bridges-card", "bridges"]
-    ] as const) {
-      const card = cardByUid(fm, cardUid);
-      expect(groupUids(card)).toEqual([`${obj}Colors-group`, `${obj}DataLabels-group`]);
-      expect(toggleDescriptor(card.groups[1])).toBe(`${obj}.showDataLabels`);
-    }
+    // Pillars gained an Outline sub-group between Colors and Data labels
+    // (feat/variance-rails-position-styles); Bridges keep the two groups.
+    const pillars = cardByUid(fm, "pillars-card");
+    expect(groupUids(pillars)).toEqual([
+      "pillarsColors-group",
+      "pillarsOutline-group",
+      "pillarsDataLabels-group"
+    ]);
+    expect(toggleDescriptor(pillars.groups[1])).toBe("pillars.outlineShow");
+    // Outline knobs stay editable with the toggle off — the "outlined"
+    // fill style reads them regardless of outlineShow.
+    expect(pillars.groups[1].inheritDisabled).toBe(false);
+    expect(toggleDescriptor(pillars.groups[2])).toBe("pillars.showDataLabels");
+    const bridges = cardByUid(fm, "bridges-card");
+    expect(groupUids(bridges)).toEqual(["bridgesColors-group", "bridgesDataLabels-group"]);
+    expect(toggleDescriptor(bridges.groups[1])).toBe("bridges.showDataLabels");
   });
 
   test("groups whose effects survive show=off escape the card-toggle graying (inheritDisabled)", () => {
     const fm = relayoutPane(builtModel());
     const inherit = (cardUid: string, groupUid: string): boolean | undefined =>
       cardByUid(fm, cardUid).groups.find((g: Any) => g.uid === groupUid)?.inheritDisabled;
+    // Axis titles render on showTitle alone; yAxis units are inherited by
+    // "Auto (Y axis)" data labels; floor offset / broken axis reshape the
+    // bars — all independent of the axis `show`.
     expect(inherit("xAxis-card", "xAxisTitle-group")).toBe(false);
     expect(inherit("yAxis-card", "yAxisValues-group")).toBe(false);
     expect(inherit("yAxis-card", "yAxisRange-group")).toBe(false);
     expect(inherit("yAxis-card", "yAxisTitle-group")).toBe(false);
+    // Gridlines and X tick labels genuinely die with show=off — they inherit.
     expect(inherit("yAxis-card", "yAxisGridlines-group")).toBeUndefined();
     expect(inherit("xAxis-card", "xAxisValues-group")).toBeUndefined();
+    // Segment labels render regardless of the legend strip visibility.
     expect(inherit("legend-card", "legendSegmentLabels-group")).toBe(false);
+    // Strip-scoped groups gray out with the strip hidden.
     expect(inherit("legend-card", "legendOptions-group")).toBeUndefined();
   });
 
@@ -284,7 +323,9 @@ describe("relayoutPane — full pipeline (getFormattingModel integration)", () =
     ];
     const fm = (v as Any).getFormattingModel();
 
+    // The dynamic card no longer surfaces as a top-level pane card…
     expect(fm.cards.map((c: Any) => c.uid)).not.toContain("varianceMeasure-card");
+    // …its groups trail the rails card's own sub-groups instead.
     const rails = cardByUid(fm, "rails-card");
     expect(groupUids(rails)).toEqual([
       "railsLayout-group",
@@ -292,15 +333,20 @@ describe("relayoutPane — full pipeline (getFormattingModel integration)", () =
       "var_Sum(VarA)-group",
       "var_Sum(VarB)-group"
     ]);
+    // Persistence untouched: every per-measure slice still targets the
+    // varianceMeasure object (the 1.1.37 contract), selector-bound.
     for (const g of rails.groups.slice(2)) {
       for (const s of g.slices) {
         expect(s.control.properties.descriptor.objectName).toBe("varianceMeasure");
         expect(s.control.properties.descriptor.selector).toBeDefined();
       }
     }
+    // Card-level reset now covers the absorbed slices too.
     const railsReverts = rails.revertToDefaultDescriptors.map((d: Any) => d.objectName);
     expect(railsReverts).toContain("rails");
     expect(railsReverts).toContain("varianceMeasure");
+    // The settings model itself is untouched (persistence path) — the
+    // varianceMeasure CARD still exists there with its load-bearing name.
     const fs = (v as Any).formattingSettings;
     expect(fs.cards.filter((c: Any) => c.name === "varianceMeasure").length).toBe(1);
   });
@@ -318,9 +364,19 @@ describe("relayoutPane — full pipeline (getFormattingModel integration)", () =
       })
     );
     const fm = (v as Any).getFormattingModel();
+    // colorBridge/pillarColor are invisible under an active legend → the
+    // bridges' single-slice Colors group vanishes instead of rendering
+    // empty. The pillars' Colors group now SURVIVES via pillarFillStyle
+    // (the fill style still matters when the legend scope excludes
+    // pillars — same reason the 1.1.65 scope kept the colour pickers).
     expect(groupUids(cardByUid(fm, "bridges-card"))).toEqual(["bridgesDataLabels-group"]);
     const pillarGroups = groupUids(cardByUid(fm, "pillars-card"));
-    expect(pillarGroups[0]).toBe("pillarsDataLabels-group");
+    expect(pillarGroups.slice(0, 3)).toEqual([
+      "pillarsColors-group",
+      "pillarsOutline-group",
+      "pillarsDataLabels-group"
+    ]);
+    // Legend card: static sub-groups first, one dynamic group per value after.
     const legend = cardByUid(fm, "legend-card");
     const legendGroups = groupUids(legend);
     expect(legendGroups.slice(0, 4)).toEqual([
@@ -330,6 +386,8 @@ describe("relayoutPane — full pipeline (getFormattingModel integration)", () =
       "legendSegmentLabels-group"
     ]);
     expect(legendGroups.slice(4)).toEqual(["legend_0-group", "legend_2-group"]);
+    // Per-value segment colours render even with the strip hidden — the
+    // dynamic groups must escape the card-toggle graying.
     for (const g of legend.groups.slice(4)) {
       expect(g.inheritDisabled).toBe(false);
     }
@@ -357,12 +415,18 @@ describe("relayoutPane — full pipeline (getFormattingModel integration)", () =
     expect(toggleDescriptor(arc)).toBe("variationArc.show");
     const arcGroups = groupUids(arc);
     expect(arcGroups.slice(0, 2)).toEqual(["variationArcLabel-group", "variationArcLine-group"]);
-    expect(arcGroups.length).toBe(3);
+    expect(arcGroups.length).toBe(3); // A→C = one drawn arc
     expect(arcGroups[2].startsWith("arcDest_")).toBe(true);
 
+    // Per-category isPillar groups keep trailing the pillars sub-groups
+    // (now Colors + Outline + Data labels).
     const pillarGroups = groupUids(cardByUid(fm, "pillars-card"));
-    expect(pillarGroups.slice(0, 2)).toEqual(["pillarsColors-group", "pillarsDataLabels-group"]);
-    expect(pillarGroups.slice(2)).toEqual(["cat_0-group", "cat_1-group", "cat_2-group"]);
+    expect(pillarGroups.slice(0, 3)).toEqual([
+      "pillarsColors-group",
+      "pillarsOutline-group",
+      "pillarsDataLabels-group"
+    ]);
+    expect(pillarGroups.slice(3)).toEqual(["cat_0-group", "cat_1-group", "cat_2-group"]);
   });
 
   test("built model stays deterministic across two pane opens (uid stability)", () => {

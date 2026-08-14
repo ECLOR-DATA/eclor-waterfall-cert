@@ -1,0 +1,64 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.10.0/schema.json",
+  "name": "home-title",
+  "position": {
+    "x": 48,
+    "y": 40,
+    "z": 100,
+    "height": 132,
+    "width": 1824,
+    "tabOrder": 100
+  },
+  "visual": {
+    "visualType": "textbox",
+    "objects": {
+      "general": [
+        {
+          "properties": {
+            "paragraphs": [
+              {
+                "textRuns": [
+                  {
+                    "value": "Eclor Waterfall 1.2.0.0 — les trois nouveautés",
+                    "textStyle": {
+                      "fontSize": "30pt",
+                      "color": "#091612",
+                      "fontWeight": "bold"
+                    }
+                  }
+                ]
+              },
+              {
+                "textRuns": [
+                  {
+                    "value": "Rapport de démonstration auto-portant : modèle 100 % DAX (tables calculées), visuel 1.2.0.0 embarqué dans le rapport. Aucun refresh, aucun fichier externe.",
+                    "textStyle": {
+                      "fontSize": "12pt",
+                      "color": "#5E5E5E"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  }
+}
