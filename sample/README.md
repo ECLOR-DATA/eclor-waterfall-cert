@@ -1,18 +1,73 @@
 # Sample datasets & demo report
 
-A detailed P&L dataset plus instructions for building the demo `.pbix`
-Microsoft expects with the AppSource submission.
-
-`pnl-detailed-2y.csv` is a static, self-contained extract — no generator
-script to run, just import it in Power BI Desktop.
+The reference base plus the demo report Microsoft expects with the
+AppSource submission.
 
 ## Files
 
 | File | Purpose |
 |---|---|
-| `pnl-detailed-2y.csv` | 10 080-row monthly P&L (2024-01 → 2025-12): 7 entities × 3 business units × 20 P&L lines. Signed amounts (income +, cost −) and three measures `Prior_Year` / `Budget` / `Actual`. Drives both demos below. |
+| `base/` | **The reference base** — data model + theme of the pbix actually submitted & published (1.1.76.0). Starting point for every demo report, screenshot and listing asset. See [base/MODEL.md](base/MODEL.md). |
+| `demo-report/eclor_waterfall.pbix` | **The submitted artifact** — the sample `.pbix` uploaded to Partner Center and offered on the AppSource listing. Binary, data embedded, opens with no refresh. This is the file to hand to anyone asking "show me the visual". |
+| `demo-report/eclor_waterfall.pbip` | **Versionable source of that pbix** — same 4 pages, same model, diffable TMDL + PBIR. Built on `base/`. |
+| `pnl-detailed-2y.csv` | Legacy 10 080-row monthly P&L extract (kept for the manual demo recipe below). |
 
-## How to build the demo `.pbix`
+## `demo-report/` — the sample, as pbix and as PBIP
+
+`eclor_waterfall.pbix` is the built deliverable; `eclor_waterfall.pbip` is
+the same report in reviewable form. Both sit on [base/](base/MODEL.md): the
+published model (`DIM_TIME` ⟵ `FACT_ECLOR_FINANCIALS` from
+`base/Financial Sample.xlsx`, unpivoted `Category`/`Amount` with costs
+negative, plus the `_MEASURES` table — Actual / Actual M-1 / Δ M-1 /
+Δ M-1 % / `_Color_*` fx measures), the « eclor — Light » theme and the
+ECLOR logo.
+
+The PBIP carries **no** `CustomVisuals/` folder, and that is correct, not a
+loss: its `report.json` declares
+`"publicCustomVisuals": ["eclorWaterfallECLOR2026"]`. Desktop substitutes
+the AppSource copy for any GUID it recognises in the marketplace and
+**deletes** an embedded folder on the next save, so embedding under the
+published GUID never held. A pre-release build has to be republished under a
+private GUID to be visible in Desktop at all.
+
+The same substitution explains a detail inside the `.pbix`: its
+`Report/CustomVisuals/eclorWaterfallECLOR2026/` metadata records
+`"version": "1.3.3.0"` — the build that was *imported* in the authoring
+session. Desktop stamps the imported version but renders the AppSource copy,
+so the pages in this file were produced by the published **1.1.76.0** build,
+the one in [releases/](../releases/) and the one this repo describes.
+
+The FACT query reads the workbook through the **`DataFolder` parameter**
+(neutral default `C:\eclor-waterfall\sample\base`, sanitized for publication)
+— repoint it in **Transform data → Manage parameters** to wherever this repo
+is cloned, then Refresh.
+
+Four pages (1920×1080, header band + page navigator + strict single-select
+`YearMonth` slicer preset to 2026-12). **The 💡 panels are a usage notice
+for the visual only** — Microsoft expects the sample to teach how the
+visual is used, so every tip states the bucket or format-pane path behind
+what is shown:
+
+1. **Getting started** — dedicated onboarding page: field buckets, the two
+   modes, five quick wins, tour of the file, support links.
+2. **Cumulative** — « Profit breakdown » : Category cascade with Gross
+   Sales / Sales / Profit pinned as pillars (per-point Is pillar), fx
+   field-value pillar colours (`_Color_Category`), variation arcs with
+   conditional label backgrounds on Δ M-1, Country analysis table.
+3. **Comparaison** — Actual M-1 → Actual pillars, bridges by country,
+   `Δ M-1 %` variance rails, floor offset 75 %, conditional bridge fills.
+4. **Legend** — net sales by country stacked by Category (segment labels),
+   Canada/USA demoted from the first/last pillar default, grand total
+   « Actual net sales ».
+
+To regenerate the `.pbix` for Partner Center: open `eclor_waterfall.pbip` in
+Power BI Desktop, **Refresh** (the M queries read
+`base/Financial Sample.xlsx`), then **File → Save as →
+`eclor_waterfall.pbix`** over the committed copy. Keep the two in sync —
+the pbix is what reviewers and users open, the pbip is what code review
+can actually read.
+
+## How to build the demo `.pbix` manually (legacy path)
 
 Power BI Desktop reads the CSVs directly and embeds the data inside
 `.pbix` files, so the deliverable is self-contained — no external data

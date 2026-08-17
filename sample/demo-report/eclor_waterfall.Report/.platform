@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Report",
+    "displayName": "eclor_waterfall"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "27b059cd-a185-4b99-be61-146291f50eb9"
+  }
+}
