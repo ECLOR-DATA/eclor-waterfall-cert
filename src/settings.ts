@@ -42,6 +42,15 @@ function makeDisplayUnitsDropdown(autoLabel: string = "Auto"): formattingSetting
   });
 }
 
+function makeCustomFormat(placeholder: string): formattingSettings.TextInput {
+  return new formattingSettings.TextInput({
+    name: "customFormat",
+    displayName: "Custom format",
+    placeholder,
+    value: ""
+  });
+}
+
 function makeDecimalPlaces(): formattingSettings.NumUpDown {
   return new formattingSettings.NumUpDown({
     name: "decimalPlaces",
@@ -155,6 +164,15 @@ class GeneralCardSettings extends FormattingSettingsCard {
     ],
     value: { value: "cumulative", displayName: "Cumulative" }
   });
+  orientation = new formattingSettings.ItemDropdown({
+    name: "orientation",
+    displayName: "Orientation",
+    items: [
+      { value: "horizontal", displayName: "Horizontal" },
+      { value: "vertical", displayName: "Vertical" }
+    ],
+    value: { value: "horizontal", displayName: "Horizontal" }
+  });
   showItemsWithNoData = new formattingSettings.ToggleSwitch({
     name: "showItemsWithNoData",
     displayName: "Show items with no data",
@@ -165,6 +183,7 @@ class GeneralCardSettings extends FormattingSettingsCard {
   displayNameKey: string = "Visual_General";
   slices: FormattingSettingsSlice[] = [
     this.mode,
+    this.orientation,
     this.showItemsWithNoData
   ];
 }
@@ -354,8 +373,18 @@ class BridgesCardSettings extends formattingSettings.CompositeCard {
     displayName: "Show data labels",
     value: true
   });
+  labelPosition = new formattingSettings.ItemDropdown({
+    name: "labelPosition",
+    displayName: "Position",
+    items: [
+      { value: "auto", displayName: "Outside end" },
+      { value: "center", displayName: "Center" }
+    ],
+    value: { value: "auto", displayName: "Outside end" }
+  });
   displayUnits = makeDisplayUnitsDropdown("Auto (Y axis)");
   decimalPlaces = makeDecimalPlaces();
+  customFormat = makeCustomFormat("Model format");
   colorBridge = makeFxColorPicker({
     name: "colorBridge",
     displayName: "Bridge color",
@@ -383,8 +412,10 @@ class BridgesCardSettings extends formattingSettings.CompositeCard {
     displayName: "General",
     slices: [
       this.showDataLabels,
+      this.labelPosition,
       this.displayUnits,
       this.decimalPlaces,
+      this.customFormat,
       this.colorBridge,
       this.colorBridgeLabel,
       this.labelBgShow,
@@ -404,6 +435,7 @@ class PillarsCardSettings extends formattingSettings.CompositeCard {
   });
   displayUnits = makeDisplayUnitsDropdown("Auto (Y axis)");
   decimalPlaces = makeDecimalPlaces();
+  customFormat = makeCustomFormat("Model format");
   pillarColor = makeFxColorPicker({
     name: "pillarColor",
     displayName: "Pillar color",
@@ -422,6 +454,44 @@ class PillarsCardSettings extends formattingSettings.CompositeCard {
   });
   labelBgTransparency = makeLabelBgTransparency();
   font = makeFontControl(14, true);
+  pillarFillStyle = new formattingSettings.ItemDropdown({
+    name: "pillarFillStyle",
+    displayName: "Fill style",
+    items: [
+      { value: "solid", displayName: "Solid" },
+      { value: "outlined", displayName: "Outlined" },
+      { value: "hatched", displayName: "Hatched" }
+    ],
+    value: { value: "solid", displayName: "Solid" }
+  });
+  outlineShow = new formattingSettings.ToggleSwitch({
+    name: "outlineShow",
+    displayName: "Show outline",
+    value: false
+  });
+  outlineColor = new formattingSettings.ColorPicker({
+    name: "outlineColor",
+    displayName: "Outline color",
+    value: { value: "" }
+  });
+  outlineWidth = new formattingSettings.NumUpDown({
+    name: "outlineWidth",
+    displayName: "Outline width (px)",
+    value: 1,
+    options: {
+      minValue: { type: 0, value: 0.5 },
+      maxValue: { type: 1, value: 4 }
+    }
+  });
+  outlineStyle = new formattingSettings.ItemDropdown({
+    name: "outlineStyle",
+    displayName: "Outline style",
+    items: [
+      { value: "solid", displayName: "Solid" },
+      { value: "dashed", displayName: "Dashed" }
+    ],
+    value: { value: "solid", displayName: "Solid" }
+  });
   name: string = "pillars";
   displayName: string = "Pillars";
   displayNameKey: string = "Visual_Pillars";
@@ -433,7 +503,13 @@ class PillarsCardSettings extends formattingSettings.CompositeCard {
       this.showDataLabels,
       this.displayUnits,
       this.decimalPlaces,
+      this.customFormat,
       this.pillarColor,
+      this.pillarFillStyle,
+      this.outlineShow,
+      this.outlineColor,
+      this.outlineWidth,
+      this.outlineStyle,
       this.colorPillarLabel,
       this.labelBgShow,
       this.labelBgColor,
@@ -449,6 +525,38 @@ class VarianceCardSettings extends formattingSettings.CompositeCard {
     name: "showDataLabels",
     displayName: "Show data labels",
     value: true
+  });
+  position = new formattingSettings.ItemDropdown({
+    name: "position",
+    displayName: "Position",
+    items: [
+      { value: "top", displayName: "Top" },
+      { value: "bottom", displayName: "Bottom" }
+    ],
+    value: { value: "top", displayName: "Top" }
+  });
+  railStyle = new formattingSettings.ItemDropdown({
+    name: "railStyle",
+    displayName: "Style",
+    items: [
+      { value: "bars", displayName: "Bars (classic)" },
+      { value: "pin", displayName: "Pin (IBCS)" },
+      { value: "labels", displayName: "Labels only" },
+      { value: "chips", displayName: "Chips" },
+      { value: "outlined", displayName: "Outlined bars" },
+      { value: "hatched", displayName: "Hatched bars" },
+      { value: "auto", displayName: "Auto (by format)" }
+    ],
+    value: { value: "bars", displayName: "Bars (classic)" }
+  });
+  neutralThresholdPct = new formattingSettings.NumUpDown({
+    name: "neutralThresholdPct",
+    displayName: "Neutral threshold (% of max)",
+    value: 0,
+    options: {
+      minValue: { type: 0, value: 0 },
+      maxValue: { type: 1, value: 20 }
+    }
   });
   railHeight = new formattingSettings.NumUpDown({
     name: "railHeight",
@@ -493,6 +601,9 @@ class VarianceCardSettings extends formattingSettings.CompositeCard {
     displayName: "General",
     slices: [
       this.showDataLabels,
+      this.position,
+      this.railStyle,
+      this.neutralThresholdPct,
       this.railHeight,
       this.gapRails,
       this.gapGauge,
@@ -658,6 +769,33 @@ class AnalysisTableCardSettings extends FormattingSettingsCard {
       maxValue: { type: 1, value: 60 }
     }
   });
+  columnWidth = new formattingSettings.NumUpDown({
+    name: "columnWidth",
+    displayName: "Column width (px, 0 = auto)",
+    value: 0,
+    options: {
+      minValue: { type: 0, value: 0 },
+      maxValue: { type: 1, value: 400 }
+    }
+  });
+  rowHeaderWidth = new formattingSettings.NumUpDown({
+    name: "rowHeaderWidth",
+    displayName: "Row header width (px, 0 = auto)",
+    value: 0,
+    options: {
+      minValue: { type: 0, value: 0 },
+      maxValue: { type: 1, value: 600 }
+    }
+  });
+  headerLines = new formattingSettings.NumUpDown({
+    name: "headerLines",
+    displayName: "Header lines (1 = no wrap)",
+    value: 1,
+    options: {
+      minValue: { type: 0, value: 1 },
+      maxValue: { type: 1, value: 4 }
+    }
+  });
   name: string = "analysisTable";
   displayName: string = "Table";
   displayNameKey: string = "Visual_AnalysisTable";
@@ -673,11 +811,28 @@ class AnalysisTableCardSettings extends FormattingSettingsCard {
     this.separatorColor,
     this.displayUnits,
     this.decimalPlaces,
-    this.maxHeightPct
+    this.maxHeightPct,
+    this.columnWidth,
+    this.rowHeaderWidth,
+    this.headerLines
   ];
 }
 
 class LegendCardSettings extends formattingSettings.CompositeCard {
+  layout = new formattingSettings.ItemDropdown({
+    name: "layout",
+    displayName: "Layout",
+    items: [
+      { value: "stacked", displayName: "Stacked" },
+      { value: "subBridges", displayName: "Split bridges" }
+    ],
+    value: { value: "stacked", displayName: "Stacked" }
+  });
+  splitLabelWrap = new formattingSettings.ToggleSwitch({
+    name: "splitLabelWrap",
+    displayName: "Wrap part labels",
+    value: false
+  });
   show = new formattingSettings.ToggleSwitch({
     name: "show",
     displayName: "Show",
@@ -804,6 +959,8 @@ class LegendCardSettings extends formattingSettings.CompositeCard {
     name: "legendGeneral",
     displayName: "Options",
     slices: [
+      this.layout,
+      this.splitLabelWrap,
       this.show,
       this.position,
       this.applyTo,
@@ -838,12 +995,14 @@ class VariationArcCardSettings extends formattingSettings.CompositeCard {
     items: [
       { value: "auto-abs", displayName: "Data value" },
       { value: "auto-pct", displayName: "Percentage" },
-      { value: "auto-both", displayName: "Data value, percentage" }
+      { value: "auto-both", displayName: "Data value, percentage" },
+      { value: "measure", displayName: "Measure" }
     ],
     value: { value: "auto-both", displayName: "Data value, percentage" }
   });
   displayUnits = makeDisplayUnitsDropdown();
   decimalPlaces = makeDecimalPlaces();
+  customFormat = makeCustomFormat("Measure / delta format");
   lineColor = new formattingSettings.ColorPicker({
     name: "lineColor",
     displayName: "Line color",
@@ -925,6 +1084,7 @@ class VariationArcCardSettings extends formattingSettings.CompositeCard {
       this.defaultSource,
       this.displayUnits,
       this.decimalPlaces,
+      this.customFormat,
       this.lineColor,
       this.lineWidth,
       this.lineDash,

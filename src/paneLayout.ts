@@ -48,7 +48,12 @@ const CARD_SPECS: CardSpec[] = [
     groups: [
       {
         uid: "general-group",
-        slices: ["general-mode", "layout-barWidth", "general-showItemsWithNoData"]
+        slices: [
+          "general-mode",
+          "general-orientation",
+          "layout-barWidth",
+          "general-showItemsWithNoData"
+        ]
       }
     ]
   },
@@ -134,7 +139,14 @@ const CARD_SPECS: CardSpec[] = [
       {
         uid: "pillarsColors-group",
         displayName: "Colors",
-        slices: ["pillars-pillarColor"]
+        slices: ["pillars-pillarColor", "pillars-pillarFillStyle"]
+      },
+      {
+        uid: "pillarsOutline-group",
+        displayName: "Outline",
+        toggle: "pillars-outlineShow",
+        inheritDisabled: false,
+        slices: ["pillars-outlineColor", "pillars-outlineWidth", "pillars-outlineStyle"]
       },
       {
         uid: "pillarsDataLabels-group",
@@ -143,6 +155,7 @@ const CARD_SPECS: CardSpec[] = [
         slices: [
           "pillars-displayUnits",
           "pillars-decimalPlaces",
+          "pillars-customFormat",
           "pillars-colorPillarLabel",
           "pillars-font",
           "pillars-labelBgShow",
@@ -166,8 +179,10 @@ const CARD_SPECS: CardSpec[] = [
         displayName: "Data labels",
         toggle: "bridges-showDataLabels",
         slices: [
+          "bridges-labelPosition",
           "bridges-displayUnits",
           "bridges-decimalPlaces",
+          "bridges-customFormat",
           "bridges-colorBridgeLabel",
           "bridges-font",
           "bridges-labelBgShow",
@@ -196,7 +211,14 @@ const CARD_SPECS: CardSpec[] = [
       {
         uid: "railsLayout-group",
         displayName: "Layout",
-        slices: ["rails-railHeight", "rails-gapRails", "rails-gapGauge"]
+        slices: [
+          "rails-position",
+          "rails-railStyle",
+          "rails-neutralThresholdPct",
+          "rails-railHeight",
+          "rails-gapRails",
+          "rails-gapGauge"
+        ]
       },
       {
         uid: "railsDataLabels-group",
@@ -218,6 +240,7 @@ const CARD_SPECS: CardSpec[] = [
           "variationArc-defaultSource",
           "variationArc-displayUnits",
           "variationArc-decimalPlaces",
+          "variationArc-customFormat",
           "variationArc-labelColor",
           "variationArc-font",
           "variationArc-labelBgShow",
@@ -245,6 +268,12 @@ const CARD_SPECS: CardSpec[] = [
     keptGroupsInheritDisabled: false,
     from: ["legendGeneral-group"],
     groups: [
+      {
+        uid: "legendLayout-group",
+        displayName: "Layout",
+        inheritDisabled: false,
+        slices: ["legend-layout", "legend-splitLabelWrap"]
+      },
       {
         uid: "legendOptions-group",
         displayName: "Options",
@@ -306,7 +335,12 @@ const CARD_SPECS: CardSpec[] = [
       {
         uid: "analysisTableLayout-group",
         displayName: "Layout",
-        slices: ["analysisTable-maxHeightPct"]
+        slices: [
+          "analysisTable-maxHeightPct",
+          "analysisTable-columnWidth",
+          "analysisTable-rowHeaderWidth",
+          "analysisTable-headerLines"
+        ]
       }
     ]
   }

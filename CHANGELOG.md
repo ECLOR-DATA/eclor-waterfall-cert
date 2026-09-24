@@ -5,9 +5,703 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.6.1.0] - 2026-09-24
 
-_Nothing yet._
+### Fixed — a TEXT arc measure on an anchor arc printed the first category's string
+
+Found on the P25 bench page (custom labels built in DAX): with a text measure
+in *Variation arc value*, the comparison anchor arcs — the ones that read the
+measure at the whole-chart grain — showed « ▼ −2.5 % vs M-2 · 19,000 € »,
+i.e. Canada's evaluation, while the numeric twin of the same measure read the
+engine grand total (« −1.9 % »). 1.5.1.0 had routed the NUMBER through the
+matrix grand total but the string still came from the first non-empty leaf.
+
+- The anchor text now comes from the engine's grand-total cell as well (the
+  same `isSubtotal` node the number uses); a report with no matrix facet
+  keeps the leaf fallback. A text grand total is never coerced to a number
+  any more (it used to become `NaN` in the numeric slot).
+- Bench: **P25 Arc custom labels** — two DAX text measures per arc, a
+  `Custom format` with ▲/▼ sections and a pill, a per-category SWITCH
+  comment in cumulative mode, and the vertical twin with a per-arc override.
+
+## [1.6.0.0] - 2026-09-24
+
+### Added — one "Variation arc value" measure PER ARC
+
+« Le label ou la mesure qu'on peut placer sur l'arc de variance … il faut
+pouvoir la placer individuellement sur chaque arc. » With one measure at the
+whole-chart grain, every comparison anchor arc printed the same value (bench
+P15: 3.8 % on both arcs) — a DAX measure cannot know which arc it sits on.
+
+- The **Variation arc value** role now accepts **several measures**.
+- **Field order by default**: the k-th drawn arc (origin → destination order)
+  reads the k-th measure of the field well; fewer measures than arcs ⇒ the
+  last one repeats; **one measure ⇒ every arc reads it** — the 1.4.0.0
+  behaviour, byte-identical.
+- **Per-arc override**: each arc's own pane group (`Variation arc → origin →
+  destination`, next to *Show arc* / *Arrow ends*) gains **`Label measure`**
+  = *Auto (field order)* or any bound measure by name. Persisted as the
+  measure's queryName on the DESTINATION pillar (category identity in
+  cumulative, `withMeasure` on comparison anchors / no-category pillars) — so
+  it survives a reorder of the field well; a measure that is no longer bound
+  falls back to the field order, never to an empty arc. The dropdown appears
+  only when the bucket holds a measure.
+- A **text** measure still prints verbatim, so any label built in DAX can go
+  on any arc.
+- Why not fx on a text box: Desktop never renders the fx affordance on a
+  TextInput property of a custom visual (checked in 1.0.82); the field well
+  plus a per-arc dropdown is the UX that the host supports.
+- Plumbing: every bound measure is resolved at each bar's grain (matrix
+  X-grain subtotal per measure, engine grand total for anchors / Grand total)
+  into `arcSlots`; slot 0 feeds the historical single-measure fields.
+  Pure mapping in [src/arcMeasures.ts](src/arcMeasures.ts).
+- New capabilities property `variationArc.labelMeasure` (text). Data query
+  unchanged (the role already sat in the matrix `values` select).
+- Tests: `test/arc-measure-per-arc.test.ts` (mapping, comparison anchors with
+  field order / override / stale override / text measure / single measure,
+  cumulative per-category override, pane items and echo). Bench page P24.
+
+## [1.5.3.0] - 2026-09-24
+
+### Added — split-bridge part labels on two lines
+
+« Un retour à la ligne pour les étiquettes, activable, quand la légende est en
+split » — a named part's label (« Division D (excl. part) −14 ») overruns a thin
+bar on one line.
+
+- **Legend → Layout → `Wrap part labels`** (shown only in the `Split bridges`
+  layout): the part's NAME on the first line, its VALUE on the second. The
+  unnamed remainder keeps a single line. Off by default — the 1.5.0.0 single
+  line is byte-identical.
+- `bridgeLabelSvg` takes an optional list of lines (one `<tspan>` each) and
+  keeps every placement rule: above the bar the block's last line sits where
+  the single line did and the others stack above; below or inside, the first
+  line keeps the spot; `Center` centres the block; in vertical the block is
+  centred on the row. The background pill grows with the block, the
+  de-collision pass reserves the block's height.
+- New capabilities property `legend.splitLabelWrap` (bool). Pinned by 4 tests
+  in `legend-split-bridges` (off, horizontal, vertical, pane visibility);
+  gate at 50 suites / 840 tests. Bench P22 bottom-right shows it on.
+
+## [1.5.2.0] - 2026-09-24
+
+The two minor findings of the Desktop pass, and the product decision on the
+pinned fx defect. Pinned by `test/desktop-pass-152.test.ts`.
+
+### Fixed
+
+- **`Variation arc → Line color` bound to a measure (fx field value) stayed
+  black.** The arc's label and label-background colours went through the fx
+  cascade (`fxAcrossRows`, resolved fresh per render on the destination
+  category); the line did not. It now does — line and arrow heads take the
+  destination category's resolved colour, the global slice remains the
+  fallback, high contrast wins, and the pane echoes the resolved value like
+  the other fx slices.
+- **The arc INTO the Grand total ignored « Label contents = Measure ».** The
+  synthetic Grand total point carried no arc-measure value, so that arc fell
+  back to the computed delta (« 0 € | 0% »). `appendGrandTotal` now receives
+  the arc measure and lands its whole-chart total (the engine grand total when
+  the matrix carries one — 1.5.1.0) on the Grand total, exactly as the
+  comparison anchors do.
+
+### Verified on the AppSource sample report (`sample/demo-report`, the one Microsoft has)
+
+Two scratch copies of the submitted PBIP opened side by side in Desktop: the
+report as-is (published GUID → the AppSource **1.1.76.0** build) and the same
+report with the **1.5.2.0** preview embedded. Pixel diff of the four pages
+(`docs/screens/demo-report-2026-09-24/`):
+
+| Page | Δ pixels | What differs |
+|---|---|---|
+| Getting started | 0 | — |
+| Cumulative | 0 | — (fx pillar colours by measure, arcs, Table role: identical) |
+| Legend | 0 | — |
+| Comparaison | 15 842 (0.19 %) | (1) the `Actual` anchor prints `6,812,336` instead of `6,812,336 €`: its measure is formatted `#,0` while `Actual M-1` carries the `€` — 1.1.76.0 applied measure 0's format to every anchor, 1.4.0.0 gives each anchor its own (deliberate, CHANGELOG 1.4.0.0). Fixing the SAMPLE's model (`Actual` → `#,0 "€"`) restores the exact look; (2) the `United States` bridge label sits above the bar instead of inside its foot (1.5.1.0 placement rule); (3) the arc pill is centred a few px differently. |
+
+### Decided — GEN-25-a stays as a documented limitation
+
+An fx RULE that does not cover every row lets its first resolved colour become
+the render fallback for every un-matched pillar and bridge (reproduced in
+Desktop on the bench, P20). Product decision (2026-09-24): **document, do not
+fix** — changing the fallback would shift colour resolution in every report
+already using fx rules. A rule written by the fx dialog covers every case (two
+Cases, `< 0` / `>= 0`) and is unaffected; a hand-written PBIR `Conditional`
+relying on `Otherwise` is the trap (the host ignores `Otherwise`). The pinned
+test stays; the project notes carry the full description.
+
+## [1.5.1.0] - 2026-09-24
+
+The first end-to-end **Power BI Desktop pass** (open item 1) — 23 bench pages
+(`audit/test-report`, P1–P23) on the 1.5.0.0 build, every 1.4.x / 1.5.0.0
+capability screenshotted against a reference. Three defects came out of it;
+all three are fixed here, each pinned by `test/desktop-pass-151.test.ts`.
+
+### Fixed — surfaced by the Desktop pass
+
+- **A zero-crossing bridge that fills the plot lost its label** (P17, the
+  +502 / −7 154 chart of 1.4.0.0). Neither the tip nor the base had room, so
+  the label fell INSIDE the bar in the configured label colour — the default
+  green on the default green bridge: invisible in both orientations.
+  `bridgeLabelSvg` now tries the bar's BASE (still off the bar) before
+  falling inside, and an inside label takes a contrasting colour (ink / white
+  by the fill's luminance) when the configured one would blend — off-bar
+  placements keep the user's colour untouched, high contrast keeps its
+  palette. `tipLabelX` gained an optional `base`; pillars do not pass it, so
+  their placement is byte-identical.
+- **One measure dropped into TWO roles produced a second, empty rail** (P14:
+  the same `%` measure in Variance and Variation arc value). The host ships
+  two columns that both carry both role flags; the role dispatch now hands
+  each role a queryName once.
+- **An anchor arc set to "Measure" showed the FIRST category's value** (P15:
+  both AC-vs-PY arcs read Canada's Δ% — 6.9 % — instead of the total's
+  3.75 %). The leaf guard for a ratio returns the first member; for the
+  whole-chart grain only the engine has the number. `buildArcMeasure` now
+  harvests the matrix **grand total** (root cells, or the depth-0
+  `isSubtotal` node) and falls back to the leaf guard only when the facet
+  carries none. Comparison anchors, the Grand total and the no-category
+  pillars all read it.
+
+### Changes an existing render on purpose — bridge labels with no room at the tip
+
+The Desktop pixel diff of the 13 pre-1.4 bench pages between the 1.4.1.0 and
+the 1.5.1.0 builds (canvas region, banner excluded) is **0 px on P1–P7 and
+P12** and touches only bridge labels on P8, P9, P10, P11, P13 (451 to
+11 072 px): every one of them is a label that had NO room at its tip and used
+to fall inside the bar in the bar's own colour — mostly invisible (« +0 » was
+all that showed of « +0.5M » on P9). Those now sit at the bar's base, fully
+readable. Pillars, rails, tables, axes, arcs: identical.
+
+### Verified in Power BI Desktop (evidence in `docs/screens/desktop-pass-2026-09-24/`)
+
+- **Dynamic format strings end to end** (open item 6): a DAX
+  `formatStringDefinition` measure and a calculation group both reach the
+  pillars, the rails and the arc — `1,250,000 €` / `+18.2%` / `+1,480` /
+  `104.35` on one measure, a `%` rail, the table column in the bar's format.
+- **Field-parameter ordering** (open item 7): a parameter whose Order column
+  says M, M-2, M-1 renders the pillars in that order — the host does populate
+  `source.index`. The PBIR binding is `fieldParameters[{parameterExpr,
+  index}]`, not a projection (now in the bench generator).
+- fx colours as a **field value** (DAX SWITCH measure): correct on pillars,
+  bridges, legend segments, with and without the Table role, both
+  orientations. fx **rules** written the way the fx dialog writes them (two
+  `Conditional` Cases, `< 0` and `>= 0`): correct everywhere, label
+  backgrounds included.
+- **GEN-25-a reproduced live** (P20, partial rule `< 0 → red` and nothing
+  else): every un-matched pillar AND bridge takes the first matched fill —
+  the whole chart turns red. Still awaiting the product decision.
+- 1.5.0.0's three evolutions render as designed: `Aggregate into one bridge`
+  (« Ajust. », blank label ⇒ « Q3F 2026 − Budget 2026 »), `Split bridges`
+  (the split part in its own sign colour), `Center` labels with background.
+- 1.4.1.0 header lines, the zero-crossing span, the label de-collision, the
+  custom-format text boxes, the text measure on the arc.
+- Not applied: `variationArc.lineColor` bound to a measure under a wildcard
+  selector stays black (the arc colour resolves per category selector).
+
+### Bench
+
+- `tools/gen-audit-pages-14.mjs` adds P14–P23 (tables, a calculation group,
+  a field parameter, the three 1.5.0.0 fixtures) to `audit/test-report`;
+  `DENSE` is a DAX reserved word (table renamed), table refs are quoted.
+
+## [1.5.0.0] - 2026-09-23
+
+Three asks from production reports, in one pack. Built on top of
+1.4.0.0 + 1.4.1.0, so this package carries **every correction not yet
+submitted** since the certified 1.1.76.0. Every new setting defaults to the
+1.4.1.0 behaviour — an untouched report renders byte-for-byte as before
+(pinned by test for each of the three).
+
+### Added — a hidden comparison segment can be aggregated into ONE bridge
+
+« Entre Budget 2026 et Q3F 2026, je n'ai pas mis les variances entre les
+piliers, mais j'aimerais une mesure de différence entre les deux, agrégée. »
+
+- **Audit of the two routes** (asked explicitly). *(A)* let a measure in Value
+  be flagged "not a pillar" — a DAX delta measure drawn as a bridge; *(B)* give
+  the existing per-measure "Show bridges before" toggle a second outcome when
+  it is OFF. **B is simpler and was shipped**: it lives entirely in the
+  explicit column plan (`planComparisonColumns`, one new column kind), the
+  delta is computed from the two pillars so the cascade **closes by
+  construction**, and nothing about what a measure IS changes (pillar count,
+  the "comparison needs 2 pillars" check, arcs, per-measure pickers). A would
+  touch all of those, and a delta measure that does not equal the pillar gap
+  leaves a cascade that does not close. A remains the route if a
+  reconciliation ever needs SEVERAL named lines between two pillars.
+- Pillars → *<measure>* → **Hidden bridges** (shown once "Show bridges before"
+  is OFF): `Remove` (default — the 1.3.0.0 behaviour) or `Aggregate into one
+  bridge`. The aggregate is Σ(this measure) − Σ(previous measure) over every
+  row, drawn as a normal bridge (connectors on both sides, variation arc
+  unchanged, legend split, footnote-table column with Σ cells = bar).
+- **Aggregated bridge label** — the X-axis text of that bar ("Ajust.").
+  Blank ⇒ `<this> − <previous>`; the tooltip keeps that description.
+- **Colour**: the aggregate takes the colour the chart already gives to the
+  bridges of its sign (`sameSignBridgeColor`, |value|-weighted). A per-row fx
+  vote is only the fallback: with three measures a "by sign" rule is written
+  on ONE delta (usually the first segment's), and the row vote painted a
+  Budget → Q3F loss green in the render check.
+- New capabilities properties (per measure): `pillars.hiddenBridgesMode`,
+  `pillars.aggregateBridgeLabel`.
+
+### Added — legend layout "Split bridges" (the split-division case)
+
+« Le split d'une division mis directement dans le waterfall plus légende, alors que les
+autres divisions n'ont pas de split — comment le traiter ? »
+
+- **How to model it**: ONE legend column, blank everywhere except on the rows
+  to isolate (`Sub`). Legend → **Layout** → `Split bridges`.
+- A bridge whose rows carry **two or more non-zero legend parts** becomes a
+  **mini-cascade inside its slot**: the bar thickness is shared, each part
+  steps from where the previous one ended, the last lands on the bridge's own
+  running-after (the main connectors are unchanged). The blank remainder comes
+  first, named parts follow. Every other bridge — and every pillar — stays a
+  plain bar.
+- Each part is **coloured like a bridge, by its own fx resolution** over its
+  own rows (the category-level vote follows the net sign — the division's net −4 —
+  which is exactly wrong for the +10 split part). No fx ⇒ the Bridges colour.
+- Each part is **labelled inline**: « Sub +10 » for a named part, the bare
+  value for the remainder; the net is not printed. Bridges card font / colours
+  / background / position apply.
+- No swatch strip in this layout (the colours no longer encode the legend);
+  the Legend card shrinks to the Layout dropdown, and the Bridges / Pillars
+  colour pickers come back. The Y range reserves a mixed-sign dip (−30 then
+  +25 from 10 dips to −20 for a net −5). Tooltip segment rows show the painted
+  colour.
+- `Stacked` (default) is the historical rendering, byte-identical.
+- New capabilities property: `legend.layout`. New pure module
+  [src/subBridges.ts](src/subBridges.ts).
+
+### Added — bridge labels can be centred on their bar
+
+« Centrer l'affichage des labels tout en conservant le background » (the
+look of the production report).
+
+- Bridges → Data labels → **Position**: `Outside end` (default — the
+  historical tip placement with its inside fallback) or `Center` — the label
+  sits in the middle of the bar, background pill kept; on a bar thinner than
+  its text the pill overflows it. Both orientations; the de-collision pass
+  still applies. Also drives the split-bridge part labels.
+- The placement now has ONE home, `bridgeLabelSvg` in `buildSVG`, shared by
+  plain and split bridges. New capabilities property: `bridges.labelPosition`.
+
+### Tests
+
+- 3 new suites (`aggregate-bridge`, `bridge-label-position`,
+  `legend-split-bridges`) + the aggregate plan cases in `pillar-overrides` —
+  50 new tests, fx rules + matrix subtotals on by default; `fx: false` only
+  where a fixture models one specific rule on purpose (justified in place).
+- New gated render suite `test/render-screens-150.test.ts` →
+  [docs/screens/feat-1.5.0/](docs/screens/feat-1.5.0/): a before/after PNG
+  pair per evolution, on data shaped like the report screenshots.
+- Gate green at 48 suites / 823 tests (+2 gated render suites).
+
+### Also in this package — the two audit findings closed on the side branch (never shipped as 1.4.2.0)
+
+Folded in on 2026-09-24 so that this package really carries **every**
+correction not yet submitted. Both were `WARN` in audit iteration 5.
+
+- **CAP-09-a — `legend.showSegmentLabel` (singular) leaves `capabilities.json`.**
+  The per-legend-value toggle was retired from the pane in 1.1.72; the
+  property had stayed in the manifest with no reader. The homonymous
+  `LegendValueInfo` field goes with it — it was fed by the GLOBAL toggle, so
+  both guards `masterShowSegmentLabels && (lv ? lv.showSegmentLabel : true)`
+  had an always-true right-hand term. Rendering unchanged, both orientations.
+  Pinned by `Legend labels — the retired per-value toggle (CAP-09-a)`.
+- **GATE-02-a — TypeScript `strict`, `noUnusedLocals`, `noUnusedParameters`**
+  on in `tsconfig.json` AND `tsconfig.jest.json`. Cost on the whole repo,
+  1.5.0.0 code included: a definite-assignment assertion on
+  `Visual.formattingSettings`, the unused `seg` parameter of `emitSegLabel`,
+  one dead local in `test/vertical.test.ts`. Playbook §2.2 raised accordingly.
+- Gate re-run on the merged tree: lint, `tsc --noEmit` (strict), 48 suites /
+  825 tests, `pbiviz package`. `releases/eclorWaterfallECLOR2026.1.5.0.0.pbiviz`
+  is the rebuilt package.
+
+### Needs the Desktop bench
+
+- The per-measure `hiddenBridgesMode` / `aggregateBridgeLabel` persist
+  through the same `withMeasure` selector as `showBridgesBefore` (proven
+  since 1.3.0.0); the TextInput round-trip is still to be seen in Desktop.
+- Split bridges rely on the host landing a measure-driven fx rule on EACH
+  (category × legend) row — the layer-4 cascade the harness models. Check on
+  the real report that the split part follows its own sign.
+
+## [1.4.1.0] - 2026-09-11
+
+### Fixed
+
+- **"Header lines" was silently inert on any table the height cap had
+  compressed** (user report: « dans la matrice / table du bas, parfois il est
+  impossible d'avoir les retours à la ligne »). The chain: `maxHeightPct`
+  (30 % by default) caps the table, the renderer compresses the rows to fit
+  that cap, and the row-label wrap then refused every line that no longer fit
+  between two rows. Six analysis rows in a 400 px visual were enough — the
+  slice did nothing, with nothing on screen to say why, and the only remedy
+  (raise Max height, a different slice) was not discoverable.
+  - `resolveTableHeight` (new, in [src/tableGeometry.ts](src/tableGeometry.ts)):
+    an explicit `Header lines >= 2` now BEATS the `maxHeightPct` share — the
+    same precedent the explicit width slices already set, for the same reason
+    (the cap is exactly what makes the slice inert). The growth is bounded:
+    never past 60 % of the visual, never past what leaves 120 px to the chart,
+    and a slider set above that share keeps the user's choice.
+  - The per-row budget also PACKS the leading (down to the glyph height + 1 px)
+    instead of dropping to a single line for want of a couple of pixels. The
+    line block can never exceed its row: the pitch is capped at
+    `rowHeight / lines`, so rows still cannot overlap.
+  - `Header lines = 1` — the default — is byte-identical: same cap, same
+    single ellipsised line, same geometry. Pinned by test.
+
+### Tests
+
+- 8 new tests in `table-width`: the pure `resolveTableHeight` (historical path,
+  growth, both bounds, the above-share slider) and the render regression
+  (6 rows / 400 px now wrap, 8 rows / 4 lines wrap, the chart keeps its floor,
+  the default does not drift). Gate green at 45 suites / 770 tests.
+
+## [1.4.0.0] - 2026-09-11
+
+Five findings from production reports, in one pass. The headline is **dynamic
+format strings**: the visual now reads the per-cell format the engine ships
+for calculation groups and dynamic-format measures, which is what made "on ne
+peut pas afficher de % sur les piliers ou les variations" true until now.
+
+### Fixed
+
+- **A bridge that crosses the baseline is drawn in full.** `computeLayout`
+  pinned the visible edge of a zero-crossing bridge to 0 ("clip to baseline",
+  CONTEXT.md decision 4). On a +502 running total, a −7 154 delta therefore
+  rendered as a 502-unit stub next to the opening pillar while the following
+  bridges resumed 6 600 units lower, with nothing joining them — the cascade
+  could not be reconstituted. The bar now spans `running → running + v`. The Y
+  range was already computed from the full extents, so the room was reserved
+  all along; only the rect was short. Out-of-range spans are still clamped at
+  paint time (`yScaleClamped` / `barSpan`), which is what the floor-offset case
+  needs. Applies to both orientations and both modes.
+- **Pillars follow the field well, field parameters included.** The matrix
+  adapter lays the measures out in `matrix.valueSources` order — the engine's
+  column order. `parseDataView` now sorts the `actual` columns by
+  `source.index` ("the position of the column in the select statement"), which
+  is the projection order a field parameter's Order column drives and what the
+  native visuals lay out. Inert unless every column carries a finite, distinct
+  index AND the delivered order disagrees, so an ordinary report is untouched.
+  Only the `actual` role is re-ordered: the variance rails are matched to the
+  matrix facet by queryName with a POSITIONAL fallback, which re-ordering could
+  desync.
+- **Value labels stop stacking on one another.** Bar labels and arc labels are
+  now de-collided left→right: a label overlapping one already placed steps away
+  from its bar by one line (up to two), tries the other side when the frame
+  blocks it, and never leaves the plot area. The arc block also RESERVES the
+  extra rows it will need, so the stagger has somewhere to go — the "il y a la
+  place pour les mettre" case. A layout with room is byte-identical.
+
+### Added — dynamic format strings (the must-have)
+
+- **`general.formatString` is declared in capabilities**, the switch that makes
+  the host send per-cell formats at all. Without it the whole feature is dead
+  and nothing says so.
+- The per-cell format (`values[i].objects[r].general.formatString`) is read
+  through the matrix adapter and routed to **pillars, bridges, stacked
+  segments, variance rails, variation arcs, tooltips and the analysis table**.
+  Precedence is: card "Custom format" → the data point's dynamic format → the
+  measure's static model format (`pickFormat`).
+- **Per-bar, not per-chart**: two categories of the same measure can carry
+  different formats (the calculation-group shape — "Revenue" in €, "Marge" in
+  %), each bar keeps its own, and the tooltip and the footnote-table column
+  read the same one as the bar label.
+- **Per-measure**: in no-category and comparison-anchor modes each pillar is a
+  measure and now formats with its own (possibly dynamic) format instead of
+  measure 0's.
+
+### Fixed — three defects the release screenshots surfaced
+
+Producing the before/after figures for this release put the same complaint one
+layer down, so they ship in the same version:
+
+- **The Y axis ignored format strings.** `formatWithScale` owns the axis' K/M/bn
+  pipeline and knows nothing about formats, so a percentage measure printed its
+  ratios raw: 0.182 at the default 0 decimals is "0", and a margin bridge whose
+  bars read 18.2 % / +2.1 % sat under an axis of five zeroes. A percentage axis
+  now formats through the model / dynamic format and drops the unit scale
+  (scaling a ratio is meaningless).
+- **The Y axis collapsed its own ticks.** At a K/M scale with no explicit
+  decimals, 1.2M, 1.4M and 1.6M all print "1M". `distinctTickDecimals` picks the
+  smallest precision (0–2) that keeps the ticks apart — and only when they would
+  otherwise collide, so an axis that already read correctly is byte-identical,
+  and an explicit Decimal places always wins.
+- **"1M" for 1 480 000 on the data labels.** `autoScaleDecimals` adds the
+  minimum digits (max 2) that bring the rendered number within 5 % of the real
+  one. A value that scales cleanly keeps its historical 0 decimals, and
+  un-scaled labels are untouched — that default stays the user's call through
+  the card's own Decimal places.
+- **Screen readers heard the old format.** `aria-label` was built from the
+  primary measure's format, so a `%` category was announced as "0 €" while its
+  label showed 18.5 %, and a card Custom format was never announced. The
+  announcement now follows the label the user sees, card override included.
+
+### Added — a format per card, and a measure on the arc
+
+- **`Pillars / Bridges / Variation arc → Custom format`**: a text box taking
+  the same Excel / DAX syntax as a model format string (`0.0%`, `#,##0 €`,
+  `+#,##0;-#,##0;0`). Blank = follow the model / dynamic format, so nothing
+  changes until it is filled. This is what makes "des formats différents entre
+  les piliers et les variations" expressible without touching the model.
+- **New data role "Variation arc value"** + a fourth entry in
+  `Variation arc → Label contents`: **Measure**. The arc then shows that
+  measure, resolved at the DESTINATION pillar's grain (engine X-grain subtotal
+  when the matrix carries one — the only faithful value for a ratio — else the
+  leaf aggregate), formatted with its own format. A measure returning TEXT is
+  printed verbatim, so a DAX-built string ("▲ objectif") works. An unbound
+  bucket falls back to the computed delta: picking "Measure" can never blank an
+  arc. The three historical choices are untouched.
+
+### Tests
+
+- 5 new suites, 48 tests: `dynamic-format`, `arc-measure`, `measure-order`,
+  `label-overlap`, `yaxis-ticks`. Gate green at 45 suites / 762 tests.
+- The zero-crossing tests in `layout` / `vertical` were rewritten (they pinned
+  the clip) and a dedicated repro of the production chart was added: every bridge's
+  drawn span must join its `runningBefore` to its `runningAfter`.
+- `ValCol` in the harness gained `index` (projection order) and accepts string
+  values (text arc measures).
+
+### Not verified in Power BI Desktop
+
+Everything above is jsdom + the offline renderer. Two items need the Desktop
+smoke test on a real report before any submission (open item 1 in the project notes):
+the **field-parameter order** (the fix is inert unless the host populates
+`source.index`, which only a real field parameter can confirm) and the
+**dynamic format strings** end to end (a calculation group and a measure with a
+dynamic format string, on the pillars, the rails and an arc).
+
+## [1.3.3.0] - 2026-08-14
+
+Closes the vertical-transposition debt opened in 1.2.0.0 and raised by the
+certification audit as **GEN-25-b**. Every style option the format pane offers
+now does something in both orientations.
+
+### Fixed (rail styles now apply in VERTICAL)
+- **`Variance → Style` was horizontal-only**: pin, labels, chips, outlined,
+  hatched, the `auto` routing by model format and the neutral threshold all
+  fell back to plain solid bars the moment the chart was switched to vertical,
+  while the pane kept offering them and the settings kept persisting. The
+  per-measure style override was inert there too.
+- The vertical block now runs the SAME resolution as horizontal
+  (`railEffectiveStyle` → `railItemColors`), so the neutral threshold greys
+  geometry AND label text, and `auto` routes per measure format identically.
+- **One computation, two emitters.** The mark geometry is a projection along a
+  single axis, so the column reuses `computeRailMark` verbatim — passing its
+  x-centre as the baseline and the bar's row centre as `cx` — and transposes
+  the result. Only the SVG emitter is split (`railMarkSvgV`), so the baseline
+  and amplitude rules keep a single home and cannot drift apart.
+- **The transposition is a swap AND a reflection.** The orientations disagree
+  on the value axis' direction: horizontal grows a positive value upward
+  (screen y decreasing), vertical grows it rightward (x increasing). A bare
+  x↔y swap sent negative rails to the right of the zero line, where they read
+  as gains. Pinned by an explicit two-way sign test.
+- Text-only kinds (labels / chips) reuse the horizontal label emitter as-is:
+  the ▲/▼ marker and the chip pill are anchored on the LABEL, not on an axis,
+  so they transpose for free — the column passes its centre as `cx` and the
+  bar's row centre as the band centre. Their zero baseline is dropped in
+  vertical too, matching horizontal.
+- Default (`bars`, threshold 0) renders exactly as before — pinned by test.
+
+### Tests
+- 712 tests (+7): the vertical rail matrix — pin head present, stem horizontal
+  (`y1 === y2`), chip pill emitted with the baseline dropped, ▲/▼ marker path,
+  outlined transparent-fill-plus-stroke, hatched pattern fill, neutral
+  threshold greying, and the untouched default.
+
+## [1.3.2.0] - 2026-08-14
+
+First slice of the vertical-transposition debt, opened by the certification
+audit (iteration 3, finding **GEN-25-b**): options that the format pane offers
+in both orientations but that only ever did something in horizontal.
+
+### Fixed (pillar fill style + outline now apply in VERTICAL)
+- **The vertical branch emitted a plain `fill=` rect.** Every knob of
+  `Pillars → Fill style` (solid / outlined / hatched) and of the whole
+  `Pillars → Outline` group (show / colour / width / dashed) was silently
+  inert the moment the chart was switched to vertical — in the orientation the
+  1.2.0.0 release had just introduced. The settings persisted and re-applied on
+  switching back, which made the miss easy to overlook.
+- The fix is a hoist, not a fork: fill variant and contour are **paint, not
+  geometry** — `fill="url(#…)"` and `stroke-dasharray` do not care which axis
+  carries the value — so they are now resolved ONCE above the orientation
+  split and both branches emit the same paint attributes. Solid pillars with
+  no outline stay byte-identical (pinned by test).
+- High contrast, the shared hatch registry (one `<pattern>` per colour across
+  rails and pillars) and the Grand Total's documented solid rendering all
+  follow unchanged.
+
+### Added (pure groundwork for the rails half)
+- `transposeRailMark` in [src/railGeometry.ts](src/railGeometry.ts): the rail
+  mark math is a projection along ONE axis, so the vertical column reuses
+  `computeRailMark` verbatim instead of forking it — same discipline as
+  [src/orient.ts](src/orient.ts) for the chart geometry.
+- The transposition is a swap **and a reflection**: the two orientations
+  disagree on the value axis' direction (horizontal grows a positive value
+  upward, i.e. screen y decreasing; vertical grows it rightward, x increasing).
+  A bare x↔y swap sends negative rails the wrong way — they would read as
+  gains. A regression test asserts the sign explicitly in both directions.
+
+### Known limitation (unchanged)
+- **The rail STYLES are still horizontal-only**: pin, labels, chips, outlined,
+  hatched, auto routing and the neutral threshold. The vertical rails block
+  still renders plain bars. The pure layer above is in place; wiring the
+  vertical rails renderer to it is the remaining half of GEN-25-b.
+
+### Tests
+- 705 tests (+12): 8 pure cases for `transposeRailMark` (bar / pin / text-only
+  kinds, amplitude preservation, and the explicit sign guard) and 4 render
+  cases pinning vertical/horizontal paint parity plus the untouched solid
+  default.
+
+## [1.3.1.0] - 2026-08-14
+
+First release driven by an actual **Power BI Desktop** render of the 1.3.0.0
+features (sample report [sample/demo-1.3.0](sample/demo-1.3.0/README.md), 8 pages
+covering the 18 capabilities properties added since the certified 1.1.76.0).
+Two findings, both from looking at the real thing.
+
+### Fixed (a hidden segment no longer draws a connector it cannot justify)
+- **The connector into a pillar whose preceding segment is hidden is dropped.**
+  1.3.0.0 deliberately KEPT it, reading it as an IBCS reference line from the
+  previous pillar's level. On a real report it reads as what it geometrically
+  is: a dangling stub asserting "the running total carries over at this level"
+  — precisely the claim `showBridgesBefore=false` withdraws, since no bridge
+  chain explains the step. The **variation arc still spans the pair** and
+  carries the gap, which is the information the user asked to keep.
+- Detection is local and stateless: two synth PILLARS side by side are the only
+  configuration `planComparisonColumns` can produce for a hidden segment, so the
+  renderer skips the connector on that pair and nothing else changes. Cumulative
+  mode, plain categories and the synthetic Grand Total carry no `synthCol` and
+  are untouched.
+- The test that pinned the old behaviour (`the dashed CONNECTOR … survives`) is
+  **inverted**, not deleted — two cases now cover a hidden first and last
+  segment, and the untouched 7-bar layout still emits its 6 connectors.
+
+### Added (Analysis table — `headerLines`, word-wrapped headers)
+- **New slice `Header lines (1 = no wrap)`** on Analysis table → Layout, 1–4,
+  **default 1 = the historical single ellipsised line, to the pixel**. Applies
+  to the column headers in vertical AND the row headers in horizontal.
+- **Why a count and not a toggle**: the number is what BOUNDS the layout
+  reservation. Sizing from the user's count instead of from the measured wrap
+  keeps the layout a single forward pass — the actual line count depends on the
+  band width, which is resolved after the top margin is fixed, so measuring
+  first would introduce a feedback loop.
+- **The reservation is real, never stolen from the chart**: vertical grows
+  `padTop` by `(headerLines − 1)` line pitches and the lines stack upward from
+  the historical baseline; horizontal grows `tableRowH` the same way, so the
+  render-site cap (what fits between two rows) stops refusing the extra lines —
+  without that growth the slice would have been silently inert in horizontal.
+- **A header shorter than the budget is CENTRED in the reserved block**, not
+  left resting on its last row. With `headerLines = 2`, a one-line "Enterprise"
+  otherwise shared its baseline with the second line of a wrapped neighbour and
+  read as glued to the bottom of a two-row band. The offset is
+  `(budget − usedLines) / 2` line pitches, so a label that fills its budget and
+  the whole `headerLines = 1` default both collapse to the historical baseline
+  — no existing render moves. Horizontal already centred on the row's baseline
+  and is unchanged.
+- **This is also a width control.** The auto column width samples the widest
+  formatted CELL only, never the header (documented limit, unchanged): wrapping
+  inverts the dependency so the header adapts to the band instead of the band to
+  the header. "Channel Partners" reads in full in a 100 px column where 200 px
+  were needed on one line.
+- New pure helper `wrapToWidth` in [src/tableGeometry.ts](src/tableGeometry.ts):
+  greedy break on spaces, hard mid-word break for a word longer than the line
+  ("Wholesale" in a narrow column), ellipsis on the last allowed line. The
+  `<title>` fallback carrying the full label and the aria labels (raw text) are
+  unchanged. A single line is emitted WITHOUT a `<tspan>` so the default render
+  is byte-identical.
+
+### Tests
+- 693 tests (+22): 12 pure cases for `wrapToWidth` (including the edge-case
+  zero/negative width, the empty label and the "no line ever exceeds the budget"
+  sweep) and 11 render cases in [test/table-width.test.ts](test/table-width.test.ts)
+  across both orientations, plus the inverted connector pair.
+
+## [1.3.0.0] - 2026-08-12
+
+Individual formatting for pillars built from MEASURES (the gap that forced a
+field-parameter + SWITCH workaround), per-segment control of the comparison
+detail, and a user-settable Analysis-table width. Test harness hardened: fx
+conditional-formatting rules and matrix subtotals are now ON BY DEFAULT in
+every fixture, so the two areas that historically broke in production can no
+longer regress silently. Every new option defaults to the 1.2.0.0 behaviour.
+
+### Added (per-pillar overrides when the pillars come from MEASURES)
+- **One Format-pane group per pillar, in every mode where a pillar is identifiable.** Until now `fillStyle` lived only in the `cat_N` / `measure_N` groups, and that whole loop is short-circuited by `hideIsPillarToggle` in exactly the two modes where the pillars ARE the measures (no-category + comparison; comparison + dim + M≥2). Net effect in 1.2.0.0: colour settable per measure-pillar, fill style silently gone, outline never overridable at all. The appearance slices are now **decoupled from the (genuinely inert) `isPillar` toggle** — the toggle stays hidden where it means nothing, the appearance does not.
+- **Per-pillar outline override** — `outlineMode` (`(default)` / Show / Hide), `outlineColorOverride`, `outlineWidthOverride`, `outlineStyleOverride`. Every knob is independently overridable; an absent knob inherits the global Pillars → Outline group verbatim, so `(default)` everywhere is byte-identical to 1.2.0.0. High contrast still pins the stroke to the host foreground whatever the user picked per pillar.
+- **The `pillarsMeasure_<queryName>` group is now THE single group for a measure-pillar** (fill colour → fill style → outline ladder → label colours), and the no-category `measure_N` twin is gone: the two carried the same `withMeasure(queryName)` selector, i.e. two pane groups for one pillar. Persisted property names are unchanged (`measureFillColor` stays `measureFillColor`, `fillStyle` stays `fillStyle`), so an existing report keeps every setting; only the pane's expand/collapse state of the dropped group is lost (host keys that on the group uid — it is not persistence).
+- **No-category detection for the pane widened to `!hasCategoryDim`.** `parseDataView` routes on `!categoryColumn` alone, so a bound Legend does not take the chart out of no-category mode — the old `!hasCategoryDim && !hasLegendDim` gate missed that config, which then had `measure_N` groups with no colour slices at all.
+
+### Added (hide the detail between two pillars — comparison, measure pillars)
+- **`showBridgesBefore` toggle**, on the pillar that CLOSES the segment (default ON = the historical decomposition). `false` drops the whole bridge block explaining measure k−1 → k, so that pillar reads as a standalone comparison bar — a pillar appended at the end purely for reference (adjusted budget, prior year recalled at the end of the chart). Scoped to the synth-comparison layout (comparison + dim + M≥2), the only mode where a "segment between two pillars" is well defined: comparison with a single measure has exactly two anchors (first + last), and no-category comparison draws standalone pillars with no bridges at all.
+- **Kept in a hidden segment**: the variation ARC (the global gap is precisely the information the user is after) and the dashed connector, which now reads as an IBCS reference line from the previous pillar's level. **Removed**: the corresponding bridge COLUMNS of the Analysis table — that is what keeps `Σ cells per column = bar.actual` true column by column.
+- **The synth column plan is now EXPLICIT** ([src/pillarOverrides.ts](src/pillarOverrides.ts) `planComparisonColumns`) and carried on each point (`synthCol`). `buildAnalysisCells` reads it instead of re-deriving `col % (1 + N)` — a second, independent copy of the layout rule that would have misaligned the whole footnote table the moment a segment could be hidden. Hidden bridges are not drawn, not counted in the geometry (no gap: the next pillar keeps the normal slot pitch) and not table columns.
+- Works in **both orientations**: the hiding happens at synthesis time, upstream of the [src/orient.ts](src/orient.ts) projection, so there is no orientation branch to keep in sync.
+
+### Added (Analysis table sizing — the columns were too narrow in vertical)
+- **Two new slices on the Analysis table → Layout group, `0 = Auto` on both**: `columnWidth` (vertical — the width of one analysisDim column) and `rowHeaderWidth` (horizontal — the left row-header margin). Each is shown ONLY in the orientation it governs, so the pane never grows.
+- **Two slices rather than one re-interpreted per orientation** (unlike the `railHeight` precedent): they are not the same quantity. `columnWidth` is multiplied by the number of analysisDim members (N columns side by side) while `rowHeaderWidth` is a single margin — one shared value would produce wildly different footprints on an orientation flip, where one rail stays one rail.
+- **`0 = Auto` is pixel-exact**: [src/tableGeometry.ts](src/tableGeometry.ts) `resolveTableBandWidth` returns the automatic width verbatim and does not re-clamp it, so every existing report and every committed render is unchanged.
+- **An explicit width BEATS the automatic caps** — the 34 %-of-width left-margin cap in horizontal, the `maxHeightPct` share in vertical. Those caps are precisely what truncates long dimension values ("Wholesale" → "Wholes…" on the demo report), so re-applying them would leave the new slice inert exactly when the user reaches for it. `maxHeightPct` keeps governing the Auto path.
+- **The chart is never starved**: an explicit width is budgeted against a 120 px minimum plot area; on a viewport too narrow even for that, the band degrades to a visible 8 px rather than pushing the chart to a negative width. Truncation (`truncateToWidth`) follows the effective width — more room means less ellipsis — and the `<title>` fallback carrying the full label stays in place either way.
+- **Known limit (unchanged by design)**: the AUTO column width in vertical samples the widest formatted CELL only, never the column HEADER, which is why a long dimension value still ellipsises at default. Fixing the auto formula would move every committed render, so the explicit slice is the remedy.
+
+## [1.2.0.0] - 2026-08-10
+
+First post-certification feature release. Two branches merged in order
+(`feat/variance-rails-position-styles` then `feat/vertical-waterfall`): the
+variance rails gain a position and a family of IBCS styles, the pillars gain
+IBCS fill styles and a configurable outline, and the whole visual gains a
+**vertical orientation**. The certified horizontal rendering is the default
+everywhere and stays byte-identical when the new options are untouched.
+
+### Added (vertical orientation — IBCS "structure" style)
+- **New `Orientation` dropdown on the General card** (`horizontal` — default, the certified rendering, untouched / `vertical`). In vertical mode the whole visual transposes: categories run **top→bottom** on the vertical axis (first pillar on top), bars are **horizontal**, values grow **rightward**, and the value axis moves to the **top** of the chart (IBCS: read the scale before the data). Persisted values `"horizontal"` / `"vertical"` are stable API.
+- **Coordinate adapter, not a renderer fork.** New pure module [src/orient.ts](src/orient.ts) (`valueToPx` / `valueToPxClamped` / `barSpan` / `barRect` / `tipLabelX`) projects the logical layout onto screen coordinates per orientation; `buildSVG` stays single with per-section geometry branches — colors, fx cascade, formats, tooltips, selection and the matrix synth pipeline are shared byte-for-byte. The horizontal projection replicates the historical `yScale` formula exactly (pinned by test).
+- **Mirror transposition of the frame**: above→right (variation arcs adjacent to the bar tips, then the variance rails as IBCS side-by-side **columns**, `railHeight` re-read as column width, first measure nearest the chart), below→left (category labels, rotated category title, footnote table as **columns** whose cells share the bars' row centres — `maxHeightPct` re-read as a max-width share). Pillar invariants transposed (positive `x0=0,x1=actual`; negative `x0=actual,x1=0`), bridge negative-running clip preserved, broken-axis cutout and floor offset transposed (stripes near the anchored end), connectors vertical at `x = runningAfter`.
+- **Tip value labels (IBCS)**: right of positive tips (anchor `start`), left of negative tips (anchor `end`), inside-bar fallback at the chart frame — the same compromise the horizontal mode makes at its frame edges. Grand total renders at the bottom; the empty-state silhouette, aria description (`vertical orientation`), focus rings and keyboard navigation (↑/↓ with ←/→ aliases, Home/End — already symmetric) all follow the orientation. High-contrast parity.
+- **Offline render audit**: [test/render-screens.test.ts](test/render-screens.test.ts) (gated by `RENDER_SCREENS=1`) drives the REAL renderer through the jsdom harness and rasterises 9 scenarios to [docs/screens/feat-vertical/](docs/screens/feat-vertical/) (cumulative, comparison+rails+table+broken-axis, M=3 + arcs, legend stacking, all-negative, narrow viewport, empty state + horizontal witness).
+
+### Fixed (arc ↔ tip-label collisions — render feedback)
+- **Arc arrows no longer land on the tip value labels.** The vertical arc clearance estimated label widths with the layout-wide reservation ratio (0.55 em/char) — ~3 px short of a bold label's real extent. Clearance math now uses a conservative bold-aware estimate ([src/orient.ts](src/orient.ts) `estTextWidthConservative`, 0.62/0.58) plus the SAME net gap the horizontal mode guarantees (`arcNetGap` = 0.22×size + 6 ≈ 9 px — the exact decomposition of the horizontal `fontSize + 14` rule). Measured on the re-rendered frames: 9.1 px between label end and arrow tip.
+- **The arc's vertical line clears intermediate up-bridge labels.** Horizontal relies on the 30 px drop absorbing a label's bounded VERTICAL overhang (the 1.0.74 rule); a label's horizontal extent is unbounded, so the vertical wall now explicitly clears each up-bridge label end (conservative width + net gap) in addition to the bar tips. Arc block width gains a 24 px tip-label overhang allowance so worst-case anchors never push the arc label against the SVG edge.
+
+### Added (B2 — full-feature renders + fx-rule audit)
+- **Dense audit renders**: `v-all-features-comparison` (comparison + 2 variance rails incl. a `%` one + Analysis table + broken axis + floor offset + arcs `arrowEnds=end` + label backgrounds + connectors) and `v-all-features-legend` (cumulative + stacked legend + rails + arcs + table + grand total) under [docs/screens/feat-vertical/](docs/screens/feat-vertical/). The Grand total stays cumulative-only by design (`appendGrandTotal`).
+- **fx conditional-formatting proof**: [test/fx-orientation.test.ts](test/fx-orientation.test.ts) — the 4-layer persistence cascade × {pillar, bridge, rail pos/neg, arc-label} surfaces × both orientations (17 tests, incl. the 1.1.18.0 rule-fill-under-Table-split scenario and the Format-pane echo via `patchFxSlice` under a persisted vertical orientation). All layers resolve identically in both orientations — the cascade lives at parse time, upstream of the projection. Proof renders `v-fx-rules` / `h-fx-rules` (same rule-driven ramp, bar-for-bar identical colours).
+
+### Fixed (B2 sweep — vertical rail labels fused across columns)
+- **Adjacent rails' value labels no longer fuse.** Transposed, rail labels share the same ROW; the horizontal "bleed into the neighbour band" behaviour (benign vertically: ~12 px text in 70 px bands) let a negative label bleed LEFT across the gutter into the previous rail's positive label ("+14"+"-1.9%" read as "+141.9%"). New pure helper `railLabelX` ([src/orient.ts](src/orient.ts)): labels clamp inside their own column, and when the tip side has no room (saturated bar = half-column) the label FLIPS to the column's free half — guaranteed background, avoiding the same-colour-on-same-colour invisibility a plain clamp would cause. TDD: overlap render test red on the old geometry.
+
+### Tests
+- 513 tests (+97): [test/orient.test.ts](test/orient.test.ts) pins the projection contract (incl. horizontal byte-parity); [test/vertical.test.ts](test/vertical.test.ts) covers the transposed geometry + edge-case edges (all-negative offset, single category, 120×90 viewport); [test/vertical-matrix.test.ts](test/vertical-matrix.test.ts) runs {cumulative, comparison M=2, M≥3, no-category} × {horizontal, vertical} × {table, rails, legend} with the Σ cells = bar.actual invariant per column; [test/perf.test.ts](test/perf.test.ts) asserts the 10k-point cert budget in vertical too.
+
+### Known limitation (carried by this merge)
+- **The rail style variants and the pillar fill styles are horizontal-only for now.** The vertical rails block renders plain bars: `Position`, `Style` (pin / labels / chips / outlined / hatched / auto), the neutral threshold and the pillar fill styles / outline all apply to the horizontal orientation. Switching to `Vertical` falls back to the classic bar rails and solid pillars — no error, no data loss, the settings stay persisted and re-apply on switching back. Transposition is the next planned change (`src/orient.ts` projection + the rails/pillars sections' vertical branches).
+
+### Added (Variance rails: position + IBCS styles)
+- **Rails → "Position"** (dropdown, default `Top` — zero regression): `Bottom` moves the whole rails block below the chart. Vertical order becomes chart → X labels → X title → rails → analysis table; `Gap rails ↔ chart` keeps its meaning (it now separates the chart stack from the first rail) and the horizontal alignment of the rail marks on the bars stays exact in both positions. A small label allowance is reserved below the last rail so a max-amplitude negative label never collides with the table (in `Top` that bleed always landed in the gap zone above the chart).
+- **Rails → "Style"** (dropdown, global for all rails, default `Bars (classic)` — zero regression), IBCS-inspired:
+  - `Pin (IBCS)` — pin/lollipop: thin stem (1.5 px) from the zero baseline + round head at the value tip (radius proportional to the rail height, clamped 2.5–6 px). Baseline and amplitude normalization are identical to the bars.
+  - `Labels only` — no geometry, no baseline line: the signed value alone, vertically centred in the rail band, with a ▲/▼ marker coloured by the per-measure `colorPos`/`colorNeg`. Values render even when "Show data labels" is off (the label IS the style); the label background option still applies.
+- Both dropdowns persist on the `rails` object (stable values `top`/`bottom`, `bars`/`pin`/`labels`; unknown values fall back to the defaults) and surface in the Variance card's Layout group. Native tooltips, cross-filter click + dimming, high-contrast overrides and the scale-then-format label pipeline apply identically to every position × style combination (same `data-cat-idx` contract, `escapeXml`/`safeHex` on every derived string/colour).
+- New pure module [src/railGeometry.ts](src/railGeometry.ts) (pattern `yRange.ts`): block sizing, top/bottom stacking, per-style marks, label baselines and the ▲/▼ marker path — unit-tested without DOM.
+- Offline renders: [tools/audit-render-rails.mjs](tools/audit-render-rails.mjs) mirrors the new geometry and emits PNG/SVG for each notable combination under [docs/screens/feat-variance-rails/](docs/screens/feat-variance-rails/).
+
+### Added (A2 — rail style variants)
+- **Rails → Style gains `Chips`** (value on a fully-rounded sign-coloured pill at low opacity, text in the same colour; HC: host background + foreground ring), **`Outlined bars`** and **`Hatched bars`** (IBCS scenario notation — contour-only / 45° hatch in the sign colour, 1px frame), and **`Auto (by format)`**: each rail routes itself by its measure's model format — `%` → pin, absolute → bars (the IBCS pairing; detection = new `formatIsPercent` in [src/format.ts](src/format.ts), same cleaning pipeline as `multiPatternCarriesAffix` but quoted/escaped literal `%` doesn't count). Default stays `Bars (classic)`.
+- **Per-measure style override** in the dynamic Variance groups (`(default)`/Bars/Pin/Labels only/Chips) — persisted like the per-measure colours on `varianceMeasure.style`; `(default)` follows the global (incl. auto routing). The outlined/hatched global variant survives a pin routing: hollow head + stem stopped at the head edge (hatched pins keep a solid head — a 45° pattern is unreadable at ~4px radius).
+- **Rails → "Neutral threshold (% of max)"** (0–20, default 0 = off, transverse to every style): |value| strictly under the threshold % of the rail's max |value| renders neutral grey `#808080` (HC: host foreground) instead of the pos/neg sentiment colours — geometry AND label text.
+
+### Added (A2 — pillar customization; bridges untouched)
+- **Pillars → "Fill style"** (`Solid` default / `Outlined` / `Hatched`) — IBCS scenario notation (AC solid, BU/PL outlined, FC hatched) — plus a **per-pillar override** dropdown in each dynamic `cat_N` / `measure_N` group (`(default)`/Solid/Outlined/Hatched, same plain-selector persistence as `isPillar`), enabling e.g. FY24 solid / Budget outlined / Forecast hatched on one waterfall.
+- **Pillars → "Outline" pane group**: `Show outline` (default off — forces a contour on solid/hatched pillars), `Outline color` (empty = the pillar's colour), `Outline width` (0.5–4 px), `Outline style` (solid/dashed). The colour/width/dash knobs also drive the `Outlined` fill style's stroke, so they stay editable with the toggle off (`inheritDisabled: false`).
+- Shared infra: new pure module [src/svgPatterns.ts](src/svgPatterns.ts) — ONE 45° hatch-`<pattern>` registry per render pass (ids unique per colour, deduped across rails + pillars, defs emitted once, DOMParser-safe) + per-variant paint attributes (`transparent` fill on outlined bars keeps the pointer hit-target). Cross-filter dimming (element opacity) applies to patterns and strokes; HC renders hatches/outlines in the host foreground.
+- Open decisions (flagged for merge): the synthetic **Grand Total keeps its historical solid rendering** (its dedicated 1.1.75 card owns its look — pinned by test); **legend-stacked pillars keep solid segments** (a per-segment outline/hatch would fight the legend colour coding); comparison-with-dim synth anchors follow the global fill style only (no per-anchor override — the pane hides per-category groups in that mode).
+
+### Tests
+- 497 tests (+81 vs 1.1.76): [test/rail-geometry.test.ts](test/rail-geometry.test.ts) (stacking, bars/pin parity, clamps, marker path, allowance + A2: setting/override parsing, resolveRailStyle matrix, neutrality threshold), [test/rail-position-style.test.ts](test/rail-position-style.test.ts) (positions, styles, chips + HC, outlined/hatched rails, auto routing, per-measure override, neutral threshold, persistence + pane surface), new [test/svg-patterns.test.ts](test/svg-patterns.test.ts) (registry dedupe/ids/DOMParser, paint attrs) and [test/pillar-style.test.ts](test/pillar-style.test.ts) (global + per-row fill styles, outline group, GT solid, HC, shared registry), plus `formatIsPercent` cases in [test/format.test.ts](test/format.test.ts). Expectation updates limited to inventories the feature extends by design: `cat_N` groups now carry `isPillar` + `fillStyle`, per-measure Variance groups gain `style`, the Pillars pane gains the Outline group (and its Colors group survives an active legend via `pillarFillStyle`).
 
 ## [1.1.76.0] — 2026-07-05
 

@@ -69,26 +69,59 @@ describe("computeLayout — cumulative: bridge running-total chaining", () => {
     expect(b2.isFav).toBe(true);
   });
 
-  test("down-bridge crossing zero from positive running clips y0Vis to 0, keeps actualVal", () => {
+  test("down-bridge crossing zero from positive running spans the FULL delta", () => {
     const res = layout(points, "cumulative");
     const b1 = res.items[1];
-    expect(b1.y0).toBe(0);
+    expect(b1.y0).toBe(-50);
     expect(b1.y1).toBe(100);
     expect(b1.actualVal).toBe(-150);
   });
 
-  test("up-bridge crossing zero from negative running clips y0Vis to 0 (mirror rule)", () => {
+  test("up-bridge crossing zero from negative running spans the FULL delta (mirror)", () => {
     const res = layout(points, "cumulative");
     const b2 = res.items[2];
-    expect(b2.y0).toBe(0);
+    expect(b2.y0).toBe(-50);
     expect(b2.y1).toBe(30);
     expect(b2.actualVal).toBe(80);
   });
 
-  test("maxVisual/minVisual track MATH extents, not the clipped y0Vis", () => {
+  test("maxVisual/minVisual track the MATH extents (= the drawn span)", () => {
     const res = layout(points, "cumulative");
     expect(res.minVisual).toBe(-50);
     expect(res.maxVisual).toBe(100);
+  });
+});
+
+describe("computeLayout — huge deltas stay reconstitutable", () => {
+  const REPRO = [
+    pt(0, 502, true),
+    pt(1, -7154, false),
+    pt(2, 426, false),
+    pt(3, 48, false),
+    pt(4, 80, false),
+    pt(5, 4, false),
+    pt(6, -6094, true)
+  ];
+
+  test("every bridge's drawn span joins runningBefore to runningAfter", () => {
+    const res = layout(REPRO, "cumulative");
+    for (const it of res.items) {
+      if (it.type === "pillar") continue;
+      const lo = Math.min(it.runningBefore, it.runningAfter);
+      const hi = Math.max(it.runningBefore, it.runningAfter);
+      expect(it.y0).toBeCloseTo(lo, 6);
+      expect(it.y1).toBeCloseTo(hi, 6);
+    }
+  });
+
+  test("consecutive bars are contiguous — no gap in the cascade", () => {
+    const res = layout(REPRO, "cumulative");
+    const bridges = res.items.filter((it: { type: string }) => it.type !== "pillar");
+    for (let i = 1; i < bridges.length; i++) {
+      expect(bridges[i].runningBefore).toBeCloseTo(bridges[i - 1].runningAfter, 6);
+    }
+    const big = res.items[1];
+    expect(big.y1 - big.y0).toBeCloseTo(7154, 6);
   });
 });
 
@@ -116,14 +149,14 @@ describe("computeLayout — comparison: first/last-sort anchors", () => {
     expect(last.runningAfter).toBe(130);
   });
 
-  test("bridge zero-crossing clip applies in the comparison branch too", () => {
+  test("a zero-crossing bridge spans the full delta in the comparison branch too", () => {
     const res = layout(
       [pt(0, 100, true), pt(1, -150, false), pt(2, -50, true)],
       "comparison"
     );
     const bridge = res.items[1];
     expect(bridge.type).toBe("down");
-    expect(bridge.y0).toBe(0);
+    expect(bridge.y0).toBe(-50);
     expect(bridge.y1).toBe(100);
     expect(bridge.actualVal).toBe(-150);
     const last = res.items[2];

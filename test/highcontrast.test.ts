@@ -36,6 +36,7 @@ function makeHcVisual(isHighContrast = true): Visual {
 function richDv(): any {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const dv = dvBuild({
+    fx: false,
     cats: [{ name: "Cat", values: ["A", "B", "C"] }],
     vals: [
       { name: "Sales", role: "actual", values: [100, -40, 30] },

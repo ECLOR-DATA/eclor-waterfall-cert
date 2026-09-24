@@ -1,12 +1,13 @@
 
 import powerbi from "powerbi-visuals-api";
 import VisualTooltipDataItem = powerbi.extensibility.VisualTooltipDataItem;
-import { formatActualLabel, safeHex } from "./format";
+import { formatActualLabel, pickFormat, safeHex } from "./format";
 
 export interface TooltipCategorySegment {
   label: string;
   value: number;
   color: string;
+  bridgeColor?: string;
 }
 
 export interface TooltipCategory {
@@ -18,6 +19,8 @@ export interface TooltipCategory {
   identity: unknown;
   bridgeColor?: string;
   actualDisplayName?: string;
+  format?: string;
+  varianceFormats?: Array<string | undefined>;
   segments?: TooltipCategorySegment[];
   tooltipValues?: Array<number | null>;
 }
@@ -69,6 +72,7 @@ export interface TooltipBuildContext {
   yAxisDisplayUnits: string;
   yAxisDecimalPlaces: number;
   dataMaxAbs: number;
+  legendSplit?: boolean;
 }
 
 export function getBarColor(cdp: TooltipCategory, ctx: TooltipBuildContext): string {
@@ -85,12 +89,13 @@ export function getBarColor(cdp: TooltipCategory, ctx: TooltipBuildContext): str
 function formatVariance(
   value: number,
   vm: TooltipVarianceMeasure,
-  locale: string
+  locale: string,
+  dynamicFormat?: string
 ): string {
   const dataMaxAbs = vm.maxAbs || Math.abs(value) || 1;
   return formatActualLabel({
     value,
-    modelFormat: vm.format || "",
+    modelFormat: pickFormat(dynamicFormat, vm.format),
     cardUnits: vm.displayUnits || "auto",
     cardDecimals: vm.decimalPlaces,
     autoDecimals: 0,
@@ -143,7 +148,7 @@ export function buildTooltipItems(
       displayName: valueLabel,
       value: formatActualForTooltip(
         cdp.actualValue,
-        ctx.cachedActualFormat,
+        cdp.format || ctx.cachedActualFormat,
         ctx.locale,
         resolvedMainUnits,
         resolvedMainDecimals,
@@ -152,19 +157,23 @@ export function buildTooltipItems(
       color: dotColor
     }
   ];
+  const segmentDot = (seg: TooltipCategorySegment): string =>
+    ctx.legendSplit
+      ? (ctx.palette.isHighContrast ? dotColor : seg.bridgeColor || dotColor)
+      : seg.color;
   if (cdp.segments && cdp.segments.length > 1) {
     cdp.segments.forEach((seg) => {
       items.push({
         displayName: seg.label || "(blank)",
         value: formatActualForTooltip(
           seg.value,
-          ctx.cachedActualFormat,
+          cdp.format || ctx.cachedActualFormat,
           ctx.locale,
           resolvedMainUnits,
           resolvedMainDecimals,
           ctx.dataMaxAbs
         ),
-        color: seg.color
+        color: segmentDot(seg)
       });
     });
   }
@@ -173,7 +182,7 @@ export function buildTooltipItems(
     if (v === null || v === undefined || isNaN(v)) return;
     items.push({
       displayName: vm.name,
-      value: formatVariance(v, vm, ctx.locale),
+      value: formatVariance(v, vm, ctx.locale, cdp.varianceFormats?.[idx]),
       color: dotColor
     });
   });

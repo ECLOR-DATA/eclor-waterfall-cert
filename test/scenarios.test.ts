@@ -168,6 +168,7 @@ describe("parseDataView: measure-driven fx colour rules (the analysisDim regress
   test("colorBridge fill on a VALUE column's per-row objects is resolved onto the bridge", () => {
     const v = makeVisual();
     const dv = dvBuild({
+      fx: false,
       cats: [{ name: "Cat", values: ["A", "B", "C"] }],
       vals: [
         {
@@ -190,6 +191,7 @@ describe("parseDataView: measure-driven fx colour rules (the analysisDim regress
   test("pillarColor fill on a VALUE column's per-row objects is resolved onto the pillar", () => {
     const v = makeVisual();
     const dv = dvBuild({
+      fx: false,
       cats: [{ name: "Cat", values: ["A", "B", "C"] }],
       vals: [
         {
@@ -211,6 +213,7 @@ describe("parseDataView: measure-driven fx colour rules (the analysisDim regress
   test("category-column fill keeps PRIORITY over a value-column fill (scan order preserved)", () => {
     const v = makeVisual();
     const dv = dvBuild({
+      fx: false,
       cats: [
         {
           name: "Cat",
@@ -253,6 +256,7 @@ describe("comparison bridge fx colour is per-X, independent of the Table (analys
     const bridges = synthBridges(
       v,
       dvBuild({
+      fx: false,
         cats: [
           { name: "Cat", values: ["A", "A", "B", "B"] },
           { name: "Region", values: ["EMEA", "NA", "EMEA", "NA"], isAnalysisDim: true }
@@ -284,6 +288,7 @@ describe("comparison bridge fx colour is per-X, independent of the Table (analys
     const bridges = synthBridges(
       v,
       dvBuild({
+      fx: false,
         cats: [
           { name: "Cat", values: ["A", "A", "A", "B", "B"] },
           { name: "Region", values: ["EMEA", "NA", "APAC", "EMEA", "NA"], isAnalysisDim: true }
@@ -314,6 +319,7 @@ describe("comparison bridge fx colour is per-X, independent of the Table (analys
     const bridges = synthBridges(
       v,
       dvBuild({
+      fx: false,
         cats: [
           { name: "Cat", values: ["A", "B"] },
           { name: "Region", values: ["EMEA", "EMEA"], isAnalysisDim: true }
@@ -341,6 +347,7 @@ describe("comparison bridge fx colour is per-X, independent of the Table (analys
     const bridges = synthBridges(
       v,
       dvBuild({
+      fx: false,
         cats: [
           { name: "Cat", values: ["A", "A", "A", "B", "B"] },
           { name: "Region", values: ["EMEA", "NA", "APAC", "EMEA", "NA"], isAnalysisDim: true }
@@ -371,6 +378,7 @@ describe("comparison bridge fx colour is per-X, independent of the Table (analys
     const bridges = synthBridges(
       v,
       dvBuild({
+      fx: false,
         cats: [
           { name: "Cat", values: ["A", "A", "A", "B", "B"] },
           { name: "Region", values: ["EMEA", "NA", "APAC", "EMEA", "NA"], isAnalysisDim: true }
@@ -403,6 +411,7 @@ describe("comparison bridge fx colour is per-X, independent of the Table (analys
     const bridges = synthBridges(
       v,
       dvBuild({
+      fx: false,
         cats: [
           { name: "Cat", values: ["A", "A", "A", "A", "B"] },
           { name: "Region", values: ["N", "S", "E", "W", "N"], isAnalysisDim: true }
@@ -433,6 +442,7 @@ describe("sign-aware fx resolution: cumulative / pillar basis (1.1.30.0)", () =>
   test("pillarColor follows the aggregate sign across a mixed-sign analysisDim split", () => {
     const v = makeVisual();
     const dv = dvBuild({
+      fx: false,
       cats: [
         { name: "Cat", values: ["A", "A", "A", "A", "B"] },
         { name: "Region", values: ["N", "S", "E", "W", "N"], isAnalysisDim: true }
@@ -460,6 +470,7 @@ describe("sign-aware fx resolution: cumulative / pillar basis (1.1.30.0)", () =>
   test("all-same-sign category stays identical to the weighted vote (no spurious sign gating)", () => {
     const v = makeVisual();
     const dv = dvBuild({
+      fx: false,
       cats: [
         { name: "Cat", values: ["A", "A", "A"] },
         { name: "Region", values: ["N", "S", "E"], isAnalysisDim: true }
@@ -531,6 +542,7 @@ describe("variance rails: per-X aggregation under analysisDim (additive sum vs n
     const result: any = parse(
       v,
       dvBuild({
+      matrixSubtotals: false,
         cats: [
           { name: "Month", values: ["A", "A", "B", "B"] },
           { name: "Region", values: ["EMEA", "NA", "EMEA", "NA"], isAnalysisDim: true }
@@ -552,6 +564,7 @@ describe("variance rails: per-X aggregation under analysisDim (additive sum vs n
     const result: any = parse(
       v,
       dvBuild({
+      matrixSubtotals: false,
         cats: [
           { name: "Month", values: ["A", "A"] },
           { name: "Region", values: ["EMEA", "NA"], isAnalysisDim: true }
@@ -571,6 +584,7 @@ describe("variance rails: per-X aggregation under analysisDim (additive sum vs n
     const result: any = parse(
       v,
       dvBuild({
+      matrixSubtotals: false,
         cats: [
           { name: "Month", values: ["A", "A", "B", "B"] },
           { name: "Region", values: ["EMEA", "NA", "EMEA", "NA"], isAnalysisDim: true }
@@ -591,6 +605,7 @@ describe("variance rails: per-X aggregation under analysisDim (additive sum vs n
     const result: any = parse(
       v,
       dvBuild({
+      matrixSubtotals: false,
         cats: [
           { name: "Month", values: ["A", "A", "B", "B"] },
           { name: "Region", values: ["EMEA", "NA", "EMEA", "NA"], isAnalysisDim: true }
@@ -611,6 +626,7 @@ describe("variance rails: per-X aggregation under analysisDim (additive sum vs n
     const result: any = parse(
       v,
       dvBuild({
+      matrixSubtotals: false,
         cats: [
           { name: "Month", values: ["A", "A"] },
           { name: "Region", values: ["EMEA", "NA"], isAnalysisDim: true }
@@ -630,6 +646,7 @@ describe("variance rails: per-X aggregation under analysisDim (additive sum vs n
     const result: any = parse(
       v,
       dvBuild({
+      matrixSubtotals: false,
         cats: [
           { name: "X", values: ["A", "A", "B", "B"] },
           { name: "Region", values: ["EMEA", "NA", "EMEA", "NA"], isAnalysisDim: true }
@@ -657,6 +674,7 @@ describe("variance rails: per-X aggregation under analysisDim (additive sum vs n
     const result: any = parse(
       v,
       dvBuild({
+      matrixSubtotals: false,
         cats: [
           { name: "X", values: ["A", "A", "B", "B"] },
           { name: "Region", values: ["EMEA", "NA", "EMEA", "NA"], isAnalysisDim: true }
@@ -680,6 +698,7 @@ describe("variance rails: X-grain matrix lookup mechanics (flat/levels-less shap
     const result: any = parse(
       v,
       dvBuild({
+      matrixSubtotals: false,
         cats: [
           { name: "Month", values: ["A", "A", "B", "B"] },
           { name: "Region", values: ["EMEA", "NA", "EMEA", "NA"], isAnalysisDim: true }
@@ -704,6 +723,7 @@ describe("variance rails: X-grain matrix lookup mechanics (flat/levels-less shap
     const result: any = parse(
       v,
       dvBuild({
+      matrixSubtotals: false,
         cats: [
           { name: "Month", values: ["A", "A", "B", "B"] },
           { name: "Region", values: ["EMEA", "NA", "EMEA", "NA"], isAnalysisDim: true }
@@ -724,6 +744,7 @@ describe("variance rails: X-grain matrix lookup mechanics (flat/levels-less shap
     const result: any = parse(
       v,
       dvBuild({
+      matrixSubtotals: false,
         cats: [{ name: "Month", values: ["A", "B"] }],
         vals: [
           { name: "Amount", role: "actual", values: [100, 100] },
@@ -751,6 +772,7 @@ describe("variance rails: X-grain matrix lookup mechanics (flat/levels-less shap
     const result: any = parse(
       v,
       dvBuild({
+      matrixSubtotals: false,
         cats: [
           { name: "Month", values: ["A", "A", "B", "B"] },
           { name: "Region", values: ["EMEA", "NA", "EMEA", "NA"], isAnalysisDim: true }
@@ -774,6 +796,7 @@ describe("variance rails: X-grain matrix lookup mechanics (flat/levels-less shap
     const result: any = parse(
       v,
       dvBuild({
+      matrixSubtotals: false,
         cats: [
           { name: "Month", values: ["A", "A", "B", "B"] },
           { name: "Region", values: ["EMEA", "NA", "EMEA", "NA"], isAnalysisDim: true }
@@ -822,6 +845,7 @@ describe("variance rails: X-grain matrix lookup mechanics (flat/levels-less shap
     const result: any = parse(
       v,
       dvBuild({
+        matrixSubtotals: false,
         cats: [
           { name: "Month", values: ["A", "A"] },
           { name: "Region", values: ["EMEA", "NA"], isAnalysisDim: true }
@@ -1757,6 +1781,7 @@ describe("table-row FOCUS re-resolves fx colours over the filtered subset (1.1.3
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (v as any).cachedDefaultPillarColor = "#cccccc";
     const dv = dvBuild({
+      fx: false,
       cats: [
         { name: "Cat", values: ["A", "A", "B", "B"] },
         { name: "Region", values: ["N", "S", "N", "S"], isAnalysisDim: true }
@@ -1795,6 +1820,7 @@ describe("analysisDim row cross-filter targets the VALUE union, not the first (X
   test("rowSelIdsByValue holds one id per contributing data row, per value", () => {
     const v = makeVisual();
     const dv = dvBuild({
+      fx: false,
       cats: [
         { name: "Cat", values: ["A", "A", "B", "B"] },
         { name: "Region", values: ["N", "S", "N", "S"], isAnalysisDim: true }
@@ -1811,6 +1837,7 @@ describe("analysisDim row cross-filter targets the VALUE union, not the first (X
   test("unbalanced value (present in only one X) → union length matches its row count", () => {
     const v = makeVisual();
     const dv = dvBuild({
+      fx: false,
       cats: [
         { name: "Cat", values: ["A", "A", "B"] },
         { name: "Region", values: ["N", "S", "N"], isAnalysisDim: true }
@@ -1826,6 +1853,7 @@ describe("analysisDim row cross-filter targets the VALUE union, not the first (X
 describe("per-X majority generalizes to ALL six pillar/bridge fx colour slices (analysisDim split)", () => {
   const split = (objName: string, prop: string) =>
     dvBuild({
+      fx: false,
       cats: [
         { name: "Cat", values: ["A", "A", "A", "B", "B"] },
         { name: "Region", values: ["EMEA", "NA", "APAC", "EMEA", "NA"], isAnalysisDim: true }
@@ -1866,6 +1894,7 @@ describe("per-X majority generalizes to ALL six pillar/bridge fx colour slices (
   test("category-column fill keeps priority over value-column fill for pillarColor (tie → first-seen)", () => {
     const v = makeVisual();
     const dv = dvBuild({
+      fx: false,
       cats: [
         {
           name: "Cat",
@@ -1895,6 +1924,7 @@ describe("legend segment-label colours resolve from metadata SLOTS (1.1.72)", ()
     const v = makeVisual();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const dv: any = dvBuild({
+      fx: false,
       cats: [
         { name: "Cat", values: ["A", "A", "B", "B"] },
         { name: "Region", isLegend: true, values: ["US", "EU", "US", "EU"] }
@@ -1921,6 +1951,7 @@ describe("legend segment-label colours resolve from metadata SLOTS (1.1.72)", ()
   test("unset slot → the global default segment-label colour", () => {
     const v = makeVisual();
     const dv = dvBuild({
+      fx: false,
       cats: [
         { name: "Cat", values: ["A", "B"] },
         { name: "Region", isLegend: true, values: ["US", "EU"] }
@@ -1937,6 +1968,7 @@ describe("parseDataView: NO-CATEGORY mode (measures only)", () => {
   test("Only measures bound (no dim) → 1 point per measure", () => {
     const v = makeVisual();
     const dv = dvBuild({
+      fx: false,
       vals: [
         { name: "Budget", role: "actual", values: [100] },
         { name: "Forecast", role: "actual", values: [120] },
@@ -1955,6 +1987,7 @@ describe("parseDataView: NO-CATEGORY mode (measures only)", () => {
   test("No-category + cumulative default: first + last = pillars, middle = bridge", () => {
     const v = makeVisual();
     const dv = dvBuild({
+      fx: false,
       vals: [
         { name: "M1", role: "actual", values: [10] },
         { name: "M2", role: "actual", values: [20] },
@@ -1975,6 +2008,7 @@ describe("parseDataView: NO-CATEGORY mode (measures only)", () => {
       displayName: "Comparison"
     };
     const dv = dvBuild({
+      fx: false,
       vals: [
         { name: "M1", role: "actual", values: [10] },
         { name: "M2", role: "actual", values: [20] },

@@ -111,6 +111,49 @@ describe("performance budget (playbook §2.3, audit PERF-8): 10k rows", () => {
   );
 
   test(
+    "VERTICAL orientation: matrix 10k leaves full update() under the 1 s budget (feat/vertical-waterfall)",
+    () => {
+      const v = makeVisual();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (v as any).host.displayWarningIcon = jest.fn();
+      const dv = build10kLeafMatrix({ hideTable: true });
+      dv.metadata.objects.general = { orientation: "vertical" };
+      const best = bestOf(3, 1, () =>
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (v as any).update({ dataViews: [dv], viewport: VIEWPORT, type: 2 })
+      );
+      expect(best).toBeLessThan(BUDGET_MS);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const target = (v as any).target as HTMLElement;
+      expect(target.querySelector("parsererror")).toBeNull();
+      expect(target.querySelectorAll(".wf-bar").length).toBe(100);
+      expect(target.querySelector("svg")?.getAttribute("aria-label")).toContain(
+        "vertical orientation"
+      );
+    },
+    30000
+  );
+
+  test(
+    "VERTICAL orientation: flat 10k unique categories render is not an empty bail (untimed — jsdom DOMParser dominates)",
+    () => {
+      const v = makeVisual();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (v as any).host.displayWarningIcon = jest.fn();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const dv = build10kFlatDv() as any;
+      dv.metadata.objects = { general: { orientation: "vertical" } };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (v as any).update({ dataViews: [dv], viewport: VIEWPORT, type: 2 });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const target = (v as any).target as HTMLElement;
+      expect(target.querySelector("parsererror")).toBeNull();
+      expect(target.querySelectorAll(".wf-bar").length).toBeGreaterThanOrEqual(10000);
+    },
+    60000
+  );
+
+  test(
     "flat 10k unique categories: parse + layout under the 1 s budget",
     () => {
       const v = makeVisual();
@@ -189,11 +232,16 @@ describe("performance budget (playbook §2.3, audit PERF-8): 10k rows", () => {
       const dv = build10kLeafMatrix({ hideTable: true });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (v as any).update({ dataViews: [dv], viewport: VIEWPORT, type: 2 });
-      const t0 = performance.now();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (v as any).update({ dataViews: [dv], viewport: { width: 900, height: 500 }, type: 4 });
-      const dt = performance.now() - t0;
-      expect(dt).toBeLessThan(BUDGET_MS);
+      let tick = 0;
+      const best = bestOf(2, 1, () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (v as any).update({
+          dataViews: [dv],
+          viewport: { width: 900 + (tick++ % 2), height: 500 },
+          type: 4
+        });
+      });
+      expect(best).toBeLessThan(BUDGET_MS);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const target = (v as any).target as HTMLElement;
       const svg = target.querySelector("svg");

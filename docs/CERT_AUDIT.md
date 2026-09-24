@@ -1,8 +1,8 @@
-# Certification readiness audit — Eclor Waterfall 1.1.76.0
+# Certification readiness audit — Eclor Waterfall 1.5.2.0
 
-Audited 2026-06-09 (1.1.20.0), re-verified 2026-06-15 (1.1.43.0), 2026-07-02 (1.1.52.0), 2026-07-04 (1.1.60.0), 2026-07-05 (1.1.73.0), 2026-07-05 (1.1.74.0) and 2026-07-06 (1.1.76.0) against the official requirements at
+Audited 2026-06-09 (1.1.20.0), re-verified 2026-06-15 (1.1.43.0), 2026-07-02 (1.1.52.0), 2026-07-04 (1.1.60.0), 2026-07-05 (1.1.73.0), 2026-07-05 (1.1.74.0), 2026-07-06 (1.1.76.0) and 2026-09-24 (1.5.2.0) against the official requirements at
 [Get your Power BI visuals certified](https://learn.microsoft.com/en-us/power-bi/developer/visuals/power-bi-custom-visuals-certified) (doc version 2025-12-15).
-Audit performed on the 1.1.76.0 source (branch `certification`), artifact `releases/eclorWaterfallECLOR2026.1.1.76.0.pbiviz`. The 1.1.43.0→1.1.52.0 change was a **data-query capability change**: the `dataViewMappings` moved from `categorical` to `matrix` (same data roles, unchanged `conditions`) with engine **row subtotals** (Total/SubTotal API, [official doc](https://learn.microsoft.com/en-us/power-bi/developer/visuals/total-subtotal-api)) so the variance rails read the host-computed category-grain aggregate instead of re-aggregating leaf rows client-side (which is mathematically invalid for ratio measures).
+Audit first performed on the 1.1.76.0 source, artifact `releases/eclorWaterfallECLOR2026.1.1.76.0.pbiviz`; the 1.5.2.0 re-verification (branch `certification`, artifact `releases/eclorWaterfallECLOR2026.1.5.2.0.pbiviz`) is detailed in its own section below. The 1.1.43.0→1.1.52.0 change was a **data-query capability change**: the `dataViewMappings` moved from `categorical` to `matrix` (same data roles, unchanged `conditions`) with engine **row subtotals** (Total/SubTotal API, [official doc](https://learn.microsoft.com/en-us/power-bi/developer/visuals/total-subtotal-api)) so the variance rails read the host-computed category-grain aggregate instead of re-aggregating leaf rows client-side (which is mathematically invalid for ratio measures).
 
 The 1.1.52.0→1.1.76.0 delta is **formatting-object additions, one icon asset re-rasterization, hardening, a developer-only diagnostic overlay removed, and a legend-aggregation bug fix — the data query is unchanged** (`dataViewMappings` matrix + `subtotals` block byte-for-byte identical; the only `dataRoles` difference is a wording refinement in one optional-measure description):
 
@@ -19,6 +19,28 @@ The 1.1.52.0→1.1.76.0 delta is **formatting-object additions, one icon asset r
 
 Everything the host ships stays inside the standard DataView — **no new privileges (`"privileges": []` unchanged), no network access, no storage, no new DOM APIs**; the forbidden-API bundle scan below was re-run on the 1.1.76.0 package with the same results.
 
+## 1.1.76.0 → 1.5.2.0 (re-verified 2026-09-24, artifact `releases/eclorWaterfallECLOR2026.1.5.2.0.pbiviz`)
+
+Nine minor versions of post-certification work (1.2.0.0 … 1.5.2.0, see CHANGELOG). Disclosed delta against the certified capabilities, from a field-by-field diff of `capabilities.json`:
+
+- **Data query — ONE addition**: a new optional measure role **`arcMeasure`** ("Variation arc value") is selected in the matrix `values` (`{ "for": { "in": "arcMeasure" } }`, between `variance` and `tooltips`). The `rows` select, the `subtotals` block (Total/SubTotal API), the `conditions`, the `dataReductionAlgorithm` (10 000) and every other role are byte-for-byte unchanged. Still exactly one `dataViewMappings` entry.
+- **`general.formatString`** declared as `{ "type": { "formatting": { "formatString": true } } }` — the standard capability flag that lets the host ship per-cell **dynamic format strings** (calculation groups, DAX `formatStringDefinition`). Read-only consumption of `objects[r].general.formatString`; no persistence, no API.
+- **Format-pane objects/properties added** (standard `persistProperties` / DataView-object plumbing, no new APIs):
+  - `general.orientation` (horizontal / vertical — a coordinate adapter, single renderer).
+  - `pillars`: `customFormat` (text), `pillarFillStyle` / `fillStyle` (solid / outlined / hatched), the outline set (`outlineShow`, `outlineColor`, `outlineWidth`, `outlineStyle`, per-pillar `outlineMode` / `outlineColorOverride` / `outlineWidthOverride` / `outlineStyleOverride`), per-measure `showBridgesBefore`, `hiddenBridgesMode` (remove / aggregate) and `aggregateBridgeLabel` (text).
+  - `bridges`: `labelPosition` (outside end / center), `customFormat` (text).
+  - `variationArc`: `customFormat` (text).
+  - `rails`: `position`, `railStyle` (7 styles), `neutralThresholdPct`; `varianceMeasure.style` (per-measure override).
+  - `legend.layout` (stacked / split bridges). **Removed**: `legend.showSegmentLabel` (singular) — a manifest property that had lost its reader in 1.1.72; an old report's orphan value is ignored (backward compatible).
+  - `analysisTable`: `columnWidth`, `rowHeaderWidth`, `headerLines`.
+- **Free-text properties** (`customFormat` ×3, `aggregateBridgeLabel`): a format string goes through the same Excel-style format parser already used for model format strings (no `eval`, no `Function`); the label goes through `escapeXml()` before SVG injection like every other user-derived string. Injection probes on the three text boxes are part of the test suite.
+- **Hatched fills** use SVG `<pattern>` elements built as text and parsed through the same `DOMParser` path (pattern ids are generated, never user-derived).
+- **TypeScript**: `strict`, `noUnusedLocals`, `noUnusedParameters` now ON in both tsconfig files (the earlier posture relied on the individual strict flags).
+- **Behaviour changes on an untouched report** (every new setting defaults to the certified rendering; verified by a Desktop pixel diff of the published sample report, `docs`-level evidence kept in the private development repository): a bridge crossing the baseline is drawn over its full extent (it was clipped at 0); a comparison anchor formats with its own measure's format string (measure 0's used to apply to all); a bridge label with no room at its tip sits at the bar's base instead of inside the bar.
+- **Verification**: 836 jest tests / 50 suites; `lint → tsc (strict) → jest → pbiviz package` CI unchanged; the 1.5.2.0 build was walked through Power BI Desktop (23-page test report: every listed property, fx rules with and without a Table field, both orientations, dynamic formats, a field parameter, 10 000 points) and through the AppSource sample report side by side with the published 1.1.76.0 build.
+
+`"privileges": []` unchanged; the forbidden-API bundle scan below was re-run on the 1.5.2.0 package (results identical); `npm audit` re-run on install.
+
 ## Command requirements
 
 | Requirement | Result |
@@ -28,7 +50,7 @@ Everything the host ships stays inside the standard DataView — **no new privil
 | `pbiviz package` | ✅ builds; `--certification-audit` reports **no external requests** |
 | ESLint (`eslint-plugin-powerbi-visuals` recommended config) | ✅ 0 errors via the required script `npm run eslint` (`npx eslint . --ext .js,.jsx,.ts,.tsx`) |
 
-`npm audit` notes: production dependencies are exclusively Microsoft `powerbi-visuals-*` packages. Two `overrides` pin patched transitive dev-tool versions without major bumps: `minimatch@^9.0.0 → ^9.0.7` (ReDoS advisories) and `sockjs > uuid → ^11.1.1` (GHSA-w5hq-g745-h8pq; dev-server-only path). Re-audited 2026-07-02: new dev-tooling advisories (webpack-dev-server, ws, launch-editor, js-yaml — all dev-server/test paths, none shipped) patched via `npm audit fix` within semver; the shipped bundle is byte-identical before/after (dev-only dependency graph). Re-audited 2026-07-04 (1.1.60.0), 2026-07-05 (1.1.73.0), 2026-07-05 (1.1.74.0) and 2026-07-06 (1.1.76.0): **0 vulnerabilities**, no new advisories.
+`npm audit` notes: production dependencies are exclusively Microsoft `powerbi-visuals-*` packages. Two `overrides` pin patched transitive dev-tool versions without major bumps: `minimatch@^9.0.0 → ^9.0.7` (ReDoS advisories) and `sockjs > uuid → ^11.1.1` (GHSA-w5hq-g745-h8pq; dev-server-only path). Re-audited 2026-07-02: new dev-tooling advisories (webpack-dev-server, ws, launch-editor, js-yaml — all dev-server/test paths, none shipped) patched via `npm audit fix` within semver; the shipped bundle is byte-identical before/after (dev-only dependency graph). Re-audited 2026-07-04 (1.1.60.0), 2026-07-05 (1.1.73.0), 2026-07-05 (1.1.74.0) and 2026-07-06 (1.1.76.0): **0 vulnerabilities**, no new advisories. Re-audited 2026-09-24 (1.5.2.0): new dev-tooling advisories (brace-expansion, browserslist, fast-uri, body-parser, hono — build/lint/test paths only, none shipped) patched via `npm audit fix` within semver; **0 vulnerabilities** after; the shipped bundle is byte-identical before/after (2/2 package entries).
 
 ## File / repository requirements
 
@@ -42,7 +64,7 @@ Everything the host ships stays inside the standard DataView — **no new privil
 | Required `"eslint"` npm script | ✅ exact wording (eslint kept at v8: the required `--ext` flag errors under eslint 9 flat config) |
 | Branch named `certification` (lowercase), matching the submitted package | ✅ branch exists; pointer = the commit that builds the submitted artifact |
 | Single visual, no unrelated code, no minified files in repo | ✅ |
-| CI | ✅ `lint → tsc → jest (416 tests, 27 suites) → pbiviz package` on every push to `main` / `certification` |
+| CI | ✅ `lint → tsc → jest (836 tests, 50 suites) → pbiviz package` on every push to `main` / `certification` |
 
 ## Source-code requirements (verified on BOTH `src/` and the shipped minified bundle extracted from the `.pbiviz`)
 

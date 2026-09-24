@@ -146,11 +146,12 @@ describe("relayoutPane — target structure (static build)", () => {
     expect(fm.cards.map((c: Any) => c.uid)).toEqual(EXPECTED_CARD_ORDER);
   });
 
-  test("General = mode + bar width + no-data, single headerless group", () => {
+  test("General = mode + orientation + bar width + no-data, single headerless group", () => {
     const general = cardByUid(relayoutPane(builtModel()), "general-card");
     expect(groupUids(general)).toEqual(["general-group"]);
     expect(sliceUids(general.groups[0])).toEqual([
       "general-mode",
+      "general-orientation",
       "layout-barWidth",
       "general-showItemsWithNoData"
     ]);
@@ -198,14 +199,18 @@ describe("relayoutPane — target structure (static build)", () => {
 
   test("bars: Colors + Data labels (toggle = showDataLabels) on Pillars and Bridges", () => {
     const fm = relayoutPane(builtModel());
-    for (const [cardUid, obj] of [
-      ["pillars-card", "pillars"],
-      ["bridges-card", "bridges"]
-    ] as const) {
-      const card = cardByUid(fm, cardUid);
-      expect(groupUids(card)).toEqual([`${obj}Colors-group`, `${obj}DataLabels-group`]);
-      expect(toggleDescriptor(card.groups[1])).toBe(`${obj}.showDataLabels`);
-    }
+    const pillars = cardByUid(fm, "pillars-card");
+    expect(groupUids(pillars)).toEqual([
+      "pillarsColors-group",
+      "pillarsOutline-group",
+      "pillarsDataLabels-group"
+    ]);
+    expect(toggleDescriptor(pillars.groups[1])).toBe("pillars.outlineShow");
+    expect(pillars.groups[1].inheritDisabled).toBe(false);
+    expect(toggleDescriptor(pillars.groups[2])).toBe("pillars.showDataLabels");
+    const bridges = cardByUid(fm, "bridges-card");
+    expect(groupUids(bridges)).toEqual(["bridgesColors-group", "bridgesDataLabels-group"]);
+    expect(toggleDescriptor(bridges.groups[1])).toBe("bridges.showDataLabels");
   });
 
   test("groups whose effects survive show=off escape the card-toggle graying (inheritDisabled)", () => {
@@ -233,6 +238,7 @@ describe("relayoutPane — target structure (static build)", () => {
       "variationArcLine-group"
     ]);
     expect(groupUids(cardByUid(fm, "legend-card"))).toEqual([
+      "legendLayout-group",
       "legendOptions-group",
       "legendTitle-group",
       "legendText-group",
@@ -320,17 +326,23 @@ describe("relayoutPane — full pipeline (getFormattingModel integration)", () =
     const fm = (v as Any).getFormattingModel();
     expect(groupUids(cardByUid(fm, "bridges-card"))).toEqual(["bridgesDataLabels-group"]);
     const pillarGroups = groupUids(cardByUid(fm, "pillars-card"));
-    expect(pillarGroups[0]).toBe("pillarsDataLabels-group");
+    expect(pillarGroups.slice(0, 3)).toEqual([
+      "pillarsColors-group",
+      "pillarsOutline-group",
+      "pillarsDataLabels-group"
+    ]);
     const legend = cardByUid(fm, "legend-card");
     const legendGroups = groupUids(legend);
-    expect(legendGroups.slice(0, 4)).toEqual([
+    expect(legendGroups.slice(0, 5)).toEqual([
+      "legendLayout-group",
       "legendOptions-group",
       "legendTitle-group",
       "legendText-group",
       "legendSegmentLabels-group"
     ]);
-    expect(legendGroups.slice(4)).toEqual(["legend_0-group", "legend_2-group"]);
-    for (const g of legend.groups.slice(4)) {
+    expect(legendGroups.slice(5)).toEqual(["legend_0-group", "legend_2-group"]);
+    expect(legend.groups[0].inheritDisabled).toBe(false);
+    for (const g of legend.groups.slice(5)) {
       expect(g.inheritDisabled).toBe(false);
     }
   });
@@ -361,8 +373,12 @@ describe("relayoutPane — full pipeline (getFormattingModel integration)", () =
     expect(arcGroups[2].startsWith("arcDest_")).toBe(true);
 
     const pillarGroups = groupUids(cardByUid(fm, "pillars-card"));
-    expect(pillarGroups.slice(0, 2)).toEqual(["pillarsColors-group", "pillarsDataLabels-group"]);
-    expect(pillarGroups.slice(2)).toEqual(["cat_0-group", "cat_1-group", "cat_2-group"]);
+    expect(pillarGroups.slice(0, 3)).toEqual([
+      "pillarsColors-group",
+      "pillarsOutline-group",
+      "pillarsDataLabels-group"
+    ]);
+    expect(pillarGroups.slice(3)).toEqual(["cat_0-group", "cat_1-group", "cat_2-group"]);
   });
 
   test("built model stays deterministic across two pane opens (uid stability)", () => {

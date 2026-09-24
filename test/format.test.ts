@@ -1,4 +1,9 @@
-import { formatActualLabel, formatVarianceValue, getDisplayScale } from "../src/format";
+import {
+  formatActualLabel,
+  formatIsPercent,
+  formatVarianceValue,
+  getDisplayScale
+} from "../src/format";
 
 describe("formatVarianceValue — Excel-style format parser", () => {
   test("strips Excel colour codes ([Red], [Green], [$-409])", () => {
@@ -176,5 +181,26 @@ describe("getDisplayScale", () => {
     expect(getDisplayScale("auto", 2_500_000)).toEqual({ scale: 1e6, suffix: "M" });
     expect(getDisplayScale("auto", 5e9)).toEqual({ scale: 1e9, suffix: "bn" });
     expect(getDisplayScale("auto", 5e12)).toEqual({ scale: 1e12, suffix: "T" });
+  });
+});
+
+describe("formatIsPercent — percent detection for the rails 'auto' style", () => {
+  test("percent placeholders in any section are detected", () => {
+    expect(formatIsPercent("0.0%")).toBe(true);
+    expect(formatIsPercent("+0.0%;-0.0%")).toBe(true);
+    expect(formatIsPercent("#,##0;-#,##0;0%")).toBe(true);
+  });
+  test("bracket codes are stripped first ([Red] / [$-409])", () => {
+    expect(formatIsPercent("[Green]+0.0%;[Red]-0.0%")).toBe(true);
+    expect(formatIsPercent("[$-409]#,##0")).toBe(false);
+  });
+  test("quoted / escaped literal % is NOT a scaling percent", () => {
+    expect(formatIsPercent('0.0" %"')).toBe(false);
+    expect(formatIsPercent("0.0\\%")).toBe(false);
+  });
+  test("absolute / currency / empty formats are not percent", () => {
+    expect(formatIsPercent("#,##0")).toBe(false);
+    expect(formatIsPercent("$#,##0.00")).toBe(false);
+    expect(formatIsPercent("")).toBe(false);
   });
 });

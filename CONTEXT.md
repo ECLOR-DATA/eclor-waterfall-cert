@@ -27,7 +27,7 @@ eclor-waterfall/
 # ── Repo support (not shipped) ──
 ├── test/                    # Jest suites
 ├── sample/                  # CSV demo data + .pbix instructions
-├── docs/                    # PRIVACY.md + CERT_AUDIT.md
+├── docs/                    # PRIVACY.md, CERT_AUDIT.md, APPSOURCE_LISTING.md, …
 ├── tools/audit-render.mjs   # Offline SVG → PNG render
 ├── releases/                # Packaged .pbiviz artifacts
 ├── .github/workflows/ci.yml # lint → tsc → jest → pbiviz package
@@ -62,9 +62,17 @@ These decisions are deliberate and were validated iteratively. Don't redo them w
 - Junction Y = `runningAfter` (running total after the bar)
 - Show the gap between pillar real value and bridges sum (visual indicator of the actual variance)
 
-### 4. Bridge clipping for negative running
-- If `running < 0` and bridge crosses zero → `y0Vis = 0` (clip to baseline visually)
-- Real value preserved in label (so the user sees -305 even if visually rendered from 0)
+### 4. Bridges that cross the baseline (rewritten in 1.4.0.0)
+- A bridge ALWAYS spans its full arithmetic extent: `running → running + v`,
+  crossing the baseline when the delta flips the running total
+- Until 1.4.0.0 the visible edge was clipped to 0 ("clip to baseline"), which
+  broke the one thing a waterfall is for: with `running = +502` and a
+  `-7 154` delta the bar was drawn 502 units tall while the next bridge
+  restarted at `-6 652`, leaving a gap nothing explained
+- The Y range has always been computed from the MATH extents (`y0Math` /
+  `y1Math`), so the space was already reserved — only the rect was short
+- Clamping still happens at PAINT time (`yScaleClamped` / `barSpan`): that is
+  what keeps bars inside the frame in the floor-offset case (decision 5)
 
 ### 5. Y-axis margin and floor offset (the trickiest part)
 
@@ -120,6 +128,8 @@ else → bridge: k = ⌊col / blockSize⌋, j = col - k·blockSize - 1
 ```
 The brittle check `pointsToRender.length === origCatCount + 2` is a M=2 special case — it silently fails for M≥3. Use the explicit blockSize mapping above.
 
+Since 1.2.0.0 the layout is an EXPLICIT column plan (`planComparisonColumns` in `src/pillarOverrides.ts`) stamped on each point as `synthCol` — the renderer and the footnote table both walk it, and the `blockSize` arithmetic above is history. A segment hidden by `showBridgesBefore=false` either disappears (default) or, since 1.5.0.0, collapses into ONE `aggregate` column carrying Σ(measure k+1) − Σ(measure k) over every row — the cascade closes by construction, which is why this route was preferred over flagging a Value measure as "not a pillar" (a delta measure that does not equal the pillar gap would leave the cascade open).
+
 ### 11. Variation arcs between consecutive pillars
 Symmetric arrows over each pillar-to-pillar transition, with a per-arc measure picker (fx descriptors require all three: `selector` + `altConstantSelector` + `instanceKind: ConstantOrRule`). The Arc card is a CompositeCard with one collapsible sub-block per secondary pillar. Default text uses Δabs or Δ% mode; per-arc static-text override available.
 
@@ -133,6 +143,8 @@ Symmetric arrows over each pillar-to-pillar transition, with a per-arc measure p
 
 ### 13. Legend stacked on each bar (drag-and-drop dimension)
 When a Legend dimension is bound, each bar (pillar or bridge) renders as a stacked segment chart instead of a single rect. Per-segment value labels, per-legend-value segment label controls, fx on segment label colours + global label background. The Grand Total pillar honours the legend too — stacked instead of mono.
+
+Second layout since 1.5.0.0 — `legend.layout = "subBridges"` ("Split bridges"): a bridge with ≥2 non-zero legend parts becomes a mini-cascade inside its own slot (thickness shared, each part `running → running + v`, the last landing on the bridge's runningAfter), each part coloured by its OWN fx resolution and labelled « name value »; every other bar stays plain and no swatch strip is drawn. Stacking proportional slices cannot represent a mixed-sign split (−14 / +10 on a net −4) — this layout can. Geometry in `src/subBridges.ts`.
 
 ### 14. No-category + comparison routing
 No-category mode (measures-only, no dim) + user mode = comparison is routed **internally** to cumulative. The comparison branch hardcodes "first+last = pillars" which can't work without a dim to differentiate. Keep `userMode` as user intent, switch on `internalMode` in the renderer:
@@ -191,6 +203,16 @@ SVG text baseline is **not** the top of the glyph. Segoe UI / Arial place glyph 
 
 ---
 
+## AppSource / Partner Center listing metadata (mandatory)
+
+Partner Center requires three text fields for every Power BI visual offer. They are **not** part of the `.pbiviz` bundle (unlike the `pbiviz.json` `description`, which only feeds the in-product import dialog) and are easy to forget until submission:
+
+- **Summary** — one plain-text sentence, no line breaks, shown on the marketplace search-results page (~100-char budget).
+- **Description** — must cover (1) what the offer does, (2) the user who benefits, (3) the customer need/pain it solves. Enumerate the cert-relevant features (high-contrast, report-page tooltips, drill-down — audit G8).
+- **Keywords** — max 3, and they must appear **verbatim** in both the Summary and the Description.
+
+Repo copy lives in [docs/APPSOURCE_LISTING.md](docs/APPSOURCE_LISTING.md) — plain text, copy-paste-ready, and the collection point for the other listing artifacts (screenshot captions, video, categories, links). **For any future pbiviz submission, treat these three fields as a required deliverable alongside the packaged `.pbiviz`.**
+
 ## Constraints (don't violate)
 
 - **No CDN** — everything bundled locally (Microsoft cert requirement)
@@ -216,4 +238,4 @@ SVG text baseline is **not** the top of the glyph. Segoe UI / Arial place glyph 
 
 **TL;DR**: read this file (CONTEXT.md) for the **why** behind each design decision. The 21 decisions above are load-bearing — understand them before proposing a redesign.
 
-Last updated: 2026-07-04
+Last updated: 2026-07-05

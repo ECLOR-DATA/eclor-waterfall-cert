@@ -5,11 +5,11 @@ Advanced waterfall chart for Power BI with dual modes (**Cumulative** and **Comp
 ## Features
 
 - **Cumulative mode** — N pillars chained by bridges, with optional synthetic Grand Total pillar.
-- **Comparison mode** — 2+ measures compared through a synthesized variance bridge (supports M ≥ 3).
+- **Comparison mode** — 2+ measures compared through a synthesized variance bridge (supports M ≥ 3); any segment between two pillars can be hidden or aggregated into one labelled bridge.
 - **Y-axis floor offset** — amplify small variations by raising the chart floor; broken-axis indicator drawn automatically.
 - **Variation arcs** — brackets between consecutive pillars showing Δ% / Δabs / custom measure, configurable per arc.
 - **Analysis table** — Excel-style footnote rows under the chart, aligned with bars, with matrix-style cross-filtering (per-cell composite selection) and focused per-cell tooltips.
-- **Legend / stacked segments**, per-measure and per-category colour overrides, conditional-formatting (fx) colour rules on bars and labels.
+- **Legend** — stacked segments, or "Split bridges": a bridge with a legend split becomes an inline mini-cascade with named parts. Per-measure and per-category colour overrides, conditional-formatting (fx) colour rules on bars and labels, bridge labels at the tip or centred.
 - **Accessibility** — keyboard navigation, ARIA labels, visible focus indicators, high-contrast theme support.
 - **Localization** — en-US and fr-FR.
 
@@ -34,7 +34,8 @@ CI runs `lint → tsc → jest → pbiviz package` on every push to `main` and `
 | **Category** | X-axis dimension (one bar per unique value) |
 | **Values** | One or more measures (1 in cumulative; 2+ for comparison bridges) |
 | **Variance** | Optional variance measures rendered as rails above the chart |
-| **Legend** | Optional dimension for stacked segments |
+| **Variation arc value** | Optional measures shown on the variation arcs (Label contents = Measure) instead of the computed delta — the k-th measure labels the k-th arc, each arc can pick its own (Label measure) |
+| **Legend** | Optional dimension for stacked segments or split bridges |
 | **Table** | Optional analysis dimension for the footnote table |
 | **Tooltips** | Extra measures shown in the hover tooltip |
 
@@ -80,6 +81,22 @@ CI runs `lint → tsc → jest → pbiviz package` on every push to `main` and `
 - TypeScript strict (`strictNullChecks`, `noImplicitAny`, `noImplicitReturns`).
 - `npm audit` returns 0 vulnerabilities; certification readiness detailed in [docs/CERT_AUDIT.md](docs/CERT_AUDIT.md).
 - Design rationale and architectural decisions: [CONTEXT.md](CONTEXT.md). Version history: [CHANGELOG.md](CHANGELOG.md).
+
+## Known limitations
+
+One behaviour is documented rather than fixed, deliberately.
+
+**A conditional-formatting RULE on the pillar colour also changes the pillar
+FALLBACK.** When `Pillars → Pillar colour` carries an fx *rule* (not a
+constant), the first colour the rule resolves becomes the fallback used by
+pillars that have no colour of their own — the synthesized comparison anchors,
+the Grand total, and the legend segment defaults. An explicitly set colour
+always wins, so the remedy is direct: give each measure pillar its colour in
+`Pillars → <measure>`, and the Grand total its own in the `Grand total` card.
+A constant fx is unaffected (its value *is* the right fallback).
+
+Rail styles, the neutral threshold, pillar fill styles and outlines all apply
+in both orientations since 1.3.3.0.
 
 ## License
 

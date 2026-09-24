@@ -71,3 +71,18 @@ describe("Legend labels — per-value colour slots", () => {
     expect(fills).toContain("#0000ff");
   });
 });
+
+describe("Legend labels — the retired per-value toggle (CAP-09-a)", () => {
+  test("capabilities no longer declares the orphan legend.showSegmentLabel", () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const caps = require("../capabilities.json");
+    const props = Object.keys(caps.objects.legend.properties);
+    expect(props).toContain("showSegmentLabels");
+    expect(props).not.toContain("showSegmentLabel");
+  });
+
+  test("the global toggle alone gates the segment labels", () => {
+    expect(segLabels(render(dv({}))).length).toBeGreaterThan(0);
+    expect(segLabels(render(dv({ showSegmentLabels: false })))).toHaveLength(0);
+  });
+});

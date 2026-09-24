@@ -19,6 +19,12 @@
       "description": "Optional. One or more variance measures. Each measure becomes a horizontal rail stacked above the waterfall."
     },
     {
+      "displayName": "Variation arc value",
+      "name": "arcMeasure",
+      "kind": "Measure",
+      "description": "Optional, several allowed. Measures displayed on the variation arcs (Label contents = Measure) instead of the computed delta — the k-th measure labels the k-th arc unless an arc picks its own (Label measure); each is resolved at the destination pillar's grain and formatted with its own model format."
+    },
+    {
       "displayName": "Tooltips",
       "name": "tooltips",
       "kind": "Measure",
@@ -63,6 +69,7 @@
           "select": [
             { "for": { "in": "actual" } },
             { "for": { "in": "variance" } },
+            { "for": { "in": "arcMeasure" } },
             { "for": { "in": "tooltips" } },
             { "for": { "in": "grandTotalLabel" } }
           ]
@@ -112,9 +119,21 @@
             ]
           }
         },
+        "orientation": {
+          "displayName": "Orientation",
+          "type": {
+            "enumeration": [
+              { "value": "horizontal", "displayName": "Horizontal" },
+              { "value": "vertical", "displayName": "Vertical" }
+            ]
+          }
+        },
         "showItemsWithNoData": {
           "displayName": "Show items with no data",
           "type": { "bool": true }
+        },
+        "formatString": {
+          "type": { "formatting": { "formatString": true } }
         }
       }
     },
@@ -313,6 +332,15 @@
       "displayNameKey": "Visual_Bridges",
       "properties": {
         "showDataLabels": { "displayName": "Show data labels", "type": { "bool": true } },
+        "labelPosition": {
+          "displayName": "Position",
+          "type": {
+            "enumeration": [
+              { "value": "auto", "displayName": "Outside end" },
+              { "value": "center", "displayName": "Center" }
+            ]
+          }
+        },
         "displayUnits": {
           "displayName": "Display units",
           "type": {
@@ -328,6 +356,10 @@
         "decimalPlaces": {
           "displayName": "Decimal places",
           "type": { "numeric": true }
+        },
+        "customFormat": {
+          "displayName": "Custom format",
+          "type": { "text": true }
         },
         "colorBridge": {
           "displayName": "Bridge color",
@@ -383,9 +415,80 @@
           "displayName": "Decimal places",
           "type": { "numeric": true }
         },
+        "customFormat": {
+          "displayName": "Custom format",
+          "type": { "text": true }
+        },
         "pillarColor": {
           "displayName": "Pillar color",
           "type": { "fill": { "solid": { "color": true } } }
+        },
+        "pillarFillStyle": {
+          "displayName": "Fill style",
+          "type": {
+            "enumeration": [
+              { "value": "solid", "displayName": "Solid" },
+              { "value": "outlined", "displayName": "Outlined" },
+              { "value": "hatched", "displayName": "Hatched" }
+            ]
+          }
+        },
+        "fillStyle": {
+          "displayName": "Fill style",
+          "type": {
+            "enumeration": [
+              { "value": "default", "displayName": "(default)" },
+              { "value": "solid", "displayName": "Solid" },
+              { "value": "outlined", "displayName": "Outlined" },
+              { "value": "hatched", "displayName": "Hatched" }
+            ]
+          }
+        },
+        "outlineShow": { "displayName": "Show outline", "type": { "bool": true } },
+        "outlineColor": {
+          "displayName": "Outline color",
+          "type": { "fill": { "solid": { "color": true } } }
+        },
+        "outlineWidth": {
+          "displayName": "Outline width (px)",
+          "type": { "numeric": true }
+        },
+        "outlineStyle": {
+          "displayName": "Outline style",
+          "type": {
+            "enumeration": [
+              { "value": "solid", "displayName": "Solid" },
+              { "value": "dashed", "displayName": "Dashed" }
+            ]
+          }
+        },
+        "outlineMode": {
+          "displayName": "Outline (per pillar)",
+          "type": {
+            "enumeration": [
+              { "value": "default", "displayName": "(default)" },
+              { "value": "on", "displayName": "Show" },
+              { "value": "off", "displayName": "Hide" }
+            ]
+          }
+        },
+        "outlineColorOverride": {
+          "displayName": "Outline color (per pillar)",
+          "type": { "fill": { "solid": { "color": true } } }
+        },
+        "outlineWidthOverride": {
+          "displayName": "Outline width (per pillar)",
+          "type": { "numeric": true }
+        },
+        "outlineStyleOverride": {
+          "displayName": "Outline style (per pillar)",
+          "type": {
+            "enumeration": [
+              { "value": "default", "displayName": "(default)" },
+              { "value": "solid", "displayName": "Solid" },
+              { "value": "dashed", "displayName": "Dashed" }
+            ]
+          }
         },
         "colorPillarLabel": {
           "displayName": "Pillar label color",
@@ -394,6 +497,23 @@
         "isPillar": {
           "displayName": "Pillar (per category)",
           "type": { "bool": true }
+        },
+        "showBridgesBefore": {
+          "displayName": "Show bridges before this pillar",
+          "type": { "bool": true }
+        },
+        "hiddenBridgesMode": {
+          "displayName": "Hidden bridges",
+          "type": {
+            "enumeration": [
+              { "value": "remove", "displayName": "Remove" },
+              { "value": "aggregate", "displayName": "Aggregate into one bridge" }
+            ]
+          }
+        },
+        "aggregateBridgeLabel": {
+          "displayName": "Aggregated bridge label",
+          "type": { "text": true }
         },
         "measureFillColor": {
           "displayName": "Measure fill color",
@@ -436,6 +556,16 @@
       "displayName": "Legend",
       "displayNameKey": "Visual_Legend",
       "properties": {
+        "layout": {
+          "displayName": "Layout",
+          "type": {
+            "enumeration": [
+              { "value": "stacked", "displayName": "Stacked" },
+              { "value": "subBridges", "displayName": "Split bridges" }
+            ]
+          }
+        },
+        "splitLabelWrap": { "displayName": "Wrap part labels", "type": { "bool": true } },
         "show": { "displayName": "Show", "type": { "bool": true } },
         "position": {
           "displayName": "Position",
@@ -582,10 +712,6 @@
         "segmentLabelBold": { "displayName": "Bold", "type": { "bool": true } },
         "segmentLabelItalic": { "displayName": "Italic", "type": { "bool": true } },
         "segmentLabelUnderline": { "displayName": "Underline", "type": { "bool": true } },
-        "showSegmentLabel": {
-          "displayName": "Show segment label",
-          "type": { "bool": true }
-        },
         "segmentLabelBgShow": {
           "displayName": "Segment label background",
           "type": { "bool": true }
@@ -605,6 +731,33 @@
       "displayNameKey": "Visual_Rails",
       "properties": {
         "showDataLabels": { "displayName": "Show data labels", "type": { "bool": true } },
+        "position": {
+          "displayName": "Position",
+          "type": {
+            "enumeration": [
+              { "value": "top", "displayName": "Top" },
+              { "value": "bottom", "displayName": "Bottom" }
+            ]
+          }
+        },
+        "railStyle": {
+          "displayName": "Style",
+          "type": {
+            "enumeration": [
+              { "value": "bars", "displayName": "Bars (classic)" },
+              { "value": "pin", "displayName": "Pin (IBCS)" },
+              { "value": "labels", "displayName": "Labels only" },
+              { "value": "chips", "displayName": "Chips" },
+              { "value": "outlined", "displayName": "Outlined bars" },
+              { "value": "hatched", "displayName": "Hatched bars" },
+              { "value": "auto", "displayName": "Auto (by format)" }
+            ]
+          }
+        },
+        "neutralThresholdPct": {
+          "displayName": "Neutral threshold (% of max)",
+          "type": { "numeric": true }
+        },
         "railHeight": {
           "displayName": "Rail height (px)",
           "type": { "numeric": true }
@@ -648,6 +801,18 @@
         "name": {
           "displayName": "Title",
           "type": { "text": true }
+        },
+        "style": {
+          "displayName": "Style",
+          "type": {
+            "enumeration": [
+              { "value": "default", "displayName": "(default)" },
+              { "value": "bars", "displayName": "Bars" },
+              { "value": "pin", "displayName": "Pin" },
+              { "value": "labels", "displayName": "Labels only" },
+              { "value": "chips", "displayName": "Chips" }
+            ]
+          }
         },
         "colorPos": {
           "displayName": "Positive bar color",
@@ -789,6 +954,18 @@
         "maxHeightPct": {
           "displayName": "Max height (% of visual)",
           "type": { "numeric": true }
+        },
+        "columnWidth": {
+          "displayName": "Column width (px, 0 = auto)",
+          "type": { "numeric": true }
+        },
+        "rowHeaderWidth": {
+          "displayName": "Row header width (px, 0 = auto)",
+          "type": { "numeric": true }
+        },
+        "headerLines": {
+          "displayName": "Header lines (1 = no wrap)",
+          "type": { "numeric": true }
         }
       }
     },
@@ -804,7 +981,8 @@
             "enumeration": [
               { "value": "auto-abs", "displayName": "Data value" },
               { "value": "auto-pct", "displayName": "Percentage" },
-              { "value": "auto-both", "displayName": "Data value, percentage" }
+              { "value": "auto-both", "displayName": "Data value, percentage" },
+              { "value": "measure", "displayName": "Measure" }
             ]
           }
         },
@@ -823,6 +1001,10 @@
         "decimalPlaces": {
           "displayName": "Decimal places",
           "type": { "numeric": true }
+        },
+        "customFormat": {
+          "displayName": "Custom format",
+          "type": { "text": true }
         },
         "lineColor": {
           "displayName": "Line color",
@@ -862,6 +1044,7 @@
             ]
           }
         },
+        "labelMeasure": { "displayName": "Label measure", "type": { "text": true } },
         "labelColor": {
           "displayName": "Label color",
           "type": { "fill": { "solid": { "color": true } } }

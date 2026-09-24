@@ -119,10 +119,20 @@ describe("getFormattingModel — dynamic sub-blocks (TG-07)", () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect(catGroups.map((g: any) => g.displayName)).toEqual(["A", "B", "C"]);
     for (const g of catGroups) {
-      expect(g.slices.length).toBe(1);
-      expect(g.slices[0].name).toBe("isPillar");
-      expect(g.slices[0].selector).toBeDefined();
-      expect(g.slices[0].selector.data).toBeDefined();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect(g.slices.map((s: any) => s.name)).toEqual([
+        "isPillar",
+        "fillStyle",
+        "outlineMode",
+        "outlineColorOverride",
+        "outlineWidthOverride",
+        "outlineStyleOverride"
+      ]);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for (const s of g.slices as any[]) {
+        expect(s.selector).toBeDefined();
+        expect(s.selector.data).toBeDefined();
+      }
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect(catGroups.map((g: any) => g.slices[0].value)).toEqual([true, false, true]);
@@ -158,11 +168,20 @@ describe("getFormattingModel — dynamic sub-blocks (TG-07)", () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect(y1.slices.map((s: any) => s.name)).toEqual([
       "measureFillColor",
+      "fillStyle",
+      "outlineMode",
+      "outlineColorOverride",
+      "outlineWidthOverride",
+      "outlineStyleOverride",
       "measureLabelColor",
       "measureLabelBgColor"
     ]);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect(y1.slices.every((s: any) => s.selector !== undefined)).toBe(true);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const y2 = groups.find((g: any) => g.name === "pillarsMeasure_Y2");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect(y2.slices.map((s: any) => s.name)).toContain("showBridgesBefore");
   });
 
   test("comparison + M=1 + category dim → isPillar toggles STAY (no synth anchors, user marks pillars manually)", () => {
@@ -218,6 +237,7 @@ describe("getFormattingModel — dynamic sub-blocks (TG-07)", () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       expect(g.slices.map((s: any) => s.name)).toEqual([
         "name",
+        "style",
         "colorPos",
         "colorNeg",
         "colorName",

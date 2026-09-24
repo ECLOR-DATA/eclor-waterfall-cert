@@ -19,6 +19,23 @@ export function safeHexOrEmpty(value: unknown): string {
   return safeHex(v, "");
 }
 
+export function pickFormat(...candidates: Array<string | undefined | null>): string {
+  for (const c of candidates) {
+    if (typeof c !== "string") continue;
+    const v = c.trim();
+    if (v.length > 0) return v;
+  }
+  return "";
+}
+
+export function readDynamicFormat(objects: unknown): string {
+  if (!objects || typeof objects !== "object") return "";
+  const general = (objects as { general?: unknown }).general;
+  if (!general || typeof general !== "object") return "";
+  const fs = (general as { formatString?: unknown }).formatString;
+  return typeof fs === "string" ? fs : "";
+}
+
 export function computeAutoScale(maxAbs: number): DisplayScale {
   if (maxAbs >= 1e12) return { scale: 1e12, suffix: "T" };
   if (maxAbs >= 1e9) return { scale: 1e9, suffix: "bn" };
@@ -60,6 +77,32 @@ export function formatWithScale(
   } catch {
     return scaled.toFixed(decimals) + scale.suffix;
   }
+}
+
+export function distinctTickDecimals(
+  values: number[],
+  scale: DisplayScale,
+  locale: string = "en-US",
+  max: number = 2
+): number {
+  if (values.length < 2) return 0;
+  const allEqual = values.every((v) => v === values[0]);
+  if (allEqual) return 0;
+  for (let d = 0; d <= max; d++) {
+    const texts = values.map((v) => formatWithScale(v, scale, d, locale));
+    if (new Set(texts).size === texts.length) return d;
+  }
+  return max;
+}
+
+export function autoScaleDecimals(value: number, divisor: number): number {
+  if (!(divisor >= 1000)) return 0;
+  const scaled = Math.abs(value) / divisor;
+  if (!isFinite(scaled) || scaled === 0) return 0;
+  for (let d = 0; d <= 2; d++) {
+    if (Math.abs(Number(scaled.toFixed(d)) - scaled) <= 0.05 * scaled) return d;
+  }
+  return 2;
 }
 
 export function formatVarianceValue(
@@ -153,6 +196,14 @@ function multiPatternCarriesAffix(formatStr: string): boolean {
   });
 }
 
+export function formatIsPercent(formatStr: string): boolean {
+  const clean = (formatStr || "")
+    .replace(/\[[^\]]*\]/g, "")
+    .replace(/"[^"]*"/g, "")
+    .replace(/\\./g, "");
+  return clean.includes("%");
+}
+
 export function formatActualLabel(opts: {
   value: number;
   modelFormat: string;
@@ -225,8 +276,9 @@ export function formatActualLabel(opts: {
   if (cardDecimals > 0) {
     createOpts.precision = cardDecimals;
   } else if (!hasModelFormat) {
-    createOpts.precision =
-      !cardUnits || cardUnits === "auto" ? autoDecimals : 0;
+    const base = !cardUnits || cardUnits === "auto" ? autoDecimals : 0;
+    const divisor = scaleValue === 1001 ? 1e3 : scaleValue;
+    createOpts.precision = base > 0 ? base : autoScaleDecimals(value, divisor);
   }
   const formatter = pbiValueFormatter.create(createOpts);
   const body = formatter.format(value);
