@@ -56,3 +56,22 @@ The need it addresses: standard column charts and the native waterfall show valu
 - Categories / industries: _TBD_
 - Screenshot captions (5 max): _TBD_
 - Screen-recording video (AppSource G7): _TBD_
+
+## Pre-submission checklist (run before every Partner Center upload)
+
+- [ ] `pbiviz.json` version bumped; the `.pbiviz` in `releases/` is freshly packaged from it.
+- [ ] CI green on the commit that builds that `.pbiviz`; the `certification` branch points at it.
+- [ ] `npm audit` → 0 vulnerabilities; `docs/CERT_AUDIT.md` re-verified for this version.
+- [ ] **The sample `.pbix` embeds the same visual version as the `.pbiviz`.** Microsoft
+      rejects the submission otherwise (rejection of 2026-09-29: pbix at 1.3.3.0,
+      pbiviz at 1.6.1.0). Check, from the repo root — both lines must print the
+      same version:
+
+      unzip -p sample/demo-report/eclor_waterfall.pbix Report/CustomVisuals/eclorWaterfallECLOR2026/package.json | grep -o '"version":"[0-9.]*"' | head -1
+      grep -o '"version": *"[0-9.]*"' pbiviz.json
+
+      If they differ: open the pbix in Power BI Desktop, **Import a visual from a
+      file** → the new `.pbiviz`, save. (Desktop may display the AppSource version
+      of the visual while you work — the version check above is what counts.)
+- [ ] Summary, Description and Keywords above pasted into Partner Center (keywords verbatim in both).
+- [ ] Upload the `.pbiviz` **and** the sample `.pbix` together.

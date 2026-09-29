@@ -211,7 +211,7 @@ Partner Center requires three text fields for every Power BI visual offer. They 
 - **Description** — must cover (1) what the offer does, (2) the user who benefits, (3) the customer need/pain it solves. Enumerate the cert-relevant features (high-contrast, report-page tooltips, drill-down — audit G8).
 - **Keywords** — max 3, and they must appear **verbatim** in both the Summary and the Description.
 
-Repo copy lives in [docs/APPSOURCE_LISTING.md](docs/APPSOURCE_LISTING.md) — plain text, copy-paste-ready, and the collection point for the other listing artifacts (screenshot captions, video, categories, links). **For any future pbiviz submission, treat these three fields as a required deliverable alongside the packaged `.pbiviz`.**
+Repo copy lives in [docs/APPSOURCE_LISTING.md](docs/APPSOURCE_LISTING.md) — plain text, copy-paste-ready, and the collection point for the other listing artifacts (screenshot captions, video, categories, links). **For any future pbiviz submission, treat these three fields as a required deliverable alongside the packaged `.pbiviz`**, and run the pre-submission checklist at the end of that file (it includes the sample-pbix version check Microsoft enforces).
 
 ## Constraints (don't violate)
 
