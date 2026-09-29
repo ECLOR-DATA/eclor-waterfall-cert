@@ -35,6 +35,12 @@ To regenerate the pbix for Partner Center: open the `.pbip`, Refresh,
 two in sync — the pbix is what reviewers and users open, the pbip is what code
 review can actually read.
 
+**Embedded visual version**: the pbix carries its own copy of the visual under
+`Report/CustomVisuals/eclorWaterfallECLOR2026/`, and Microsoft rejects the
+submission if it differs from the submitted `.pbiviz`. Before saving, import
+the current `releases/*.pbiviz` (**Visualizations → … → Import a visual from a
+file**), then check `package.json` inside the pbix shows the same version.
+
 **MAX_PATH**: open the PBIP from a short root (`C:\eclor-waterfall\` or
 equivalent), never from a deep OneDrive path. A PBIR tree eats ~95 characters
 before your own names (`<report>.Report\definition\pages\<page>\visuals\<visual>\visual.json`)
