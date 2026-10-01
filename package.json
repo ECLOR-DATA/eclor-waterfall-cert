@@ -1,6 +1,6 @@
 {
   "name": "eclor-waterfall",
-  "version": "1.6.1",
+  "version": "1.6.2",
   "description": "Eclor Waterfall — Power BI custom visual. Advanced waterfall chart with cumulative + comparison modes, optional analysis-dimension footnote table, variation arcs between pillars, broken-axis indicator and Y-axis floor offset.",
   "license": "MIT",
   "scripts": {

@@ -50,7 +50,7 @@ The need it addresses: standard column charts and the native waterfall show valu
 
 ## Other listing elements (to fill before submission)
 
-- Support URL: https://github.com/ECLOR-DATA/eclor-waterfall/issues
+- Support URL: https://github.com/ECLOR-DATA/eclor-waterfall-cert/issues
 - Marketing / landing page: https://eclor-data.github.io
 - Privacy policy: see [PRIVACY.md](PRIVACY.md)
 - Categories / industries: _TBD_

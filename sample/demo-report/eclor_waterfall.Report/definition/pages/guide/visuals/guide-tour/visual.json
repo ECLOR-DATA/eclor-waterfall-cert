@@ -102,12 +102,12 @@
                     }
                   },
                   {
-                    "value": "github.com/ECLOR-DATA/eclor-waterfall/issues",
+                    "value": "github.com/ECLOR-DATA/eclor-waterfall-cert/issues",
                     "textStyle": {
                       "fontSize": "12pt",
                       "color": "#0a8f66"
                     },
-                    "url": "https://github.com/ECLOR-DATA/eclor-waterfall/issues"
+                    "url": "https://github.com/ECLOR-DATA/eclor-waterfall-cert/issues"
                   }
                 ]
               },
