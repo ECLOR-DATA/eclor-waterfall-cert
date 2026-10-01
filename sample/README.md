@@ -75,11 +75,11 @@ build under the published GUID never held. A pre-release build has to be
 republished under a private GUID to be visible in Desktop at all.
 
 The same substitution explains a detail inside the `.pbix`: its
-`Report/CustomVisuals/eclorWaterfallECLOR2026/` metadata records
-`"version": "1.3.3.0"` — the build that was *imported* in the authoring
-session. Desktop stamps the imported version but renders the AppSource copy, so
-the pages in this file were produced by the published **1.1.76.0** build, the
-one in [releases/](../releases/) and the one this repo describes.
+`Report/CustomVisuals/eclorWaterfallECLOR2026/` folder holds the build being
+submitted (currently **1.6.1.0**, identical to
+`releases/eclorWaterfallECLOR2026.1.6.1.0.pbiviz`), but Desktop may still
+render the published AppSource copy when the file is opened. The version
+Microsoft checks is the one in that embedded `package.json`.
 
 ## What the AppSource cert team does with it
 
