@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.1.0] - 2026-10-26
+
+### Fixed — an arc bubble could cover a bridge label
+
+A bubble is centred ON the bracket line, so half of it hangs between the
+line and the bars. With the *Bubble on the line* style, it could sit on a
+data label:
+- **Horizontal**: the 30 px gap between the line and the bars only leaves
+  room for a bridge label's overhang. A two-line or circle bubble — most
+  visibly away from the middle (`Position along the arc` ≠ 50) — covered
+  the « +0.3K » of the bridge under it.
+- **Vertical**: when an up-bridge label is what pushes the bracket right,
+  the line sits just past that label, and the bubble's left half covered it.
+
+The bubble now keeps clear of them:
+- **Horizontal**: the line rises by what the bubble's lower half needs on
+  top of a bridge label's overhang, and the band above the chart grows by
+  the same amount.
+- **Vertical**: the line moves right by the bubble's half width (its left
+  edge lands where the line was), and the right-hand block reserves the
+  bubble's full width.
+
+The *Text above the line* style, and so every default render, is
+unchanged: the 739 frames of the 1.7.0.0 suite rendered by the 1.7.0.0 and
+the 1.8.1.0 code are byte-identical, and so are the 19 rasterised
+`RENDER_SCREENS` scenarios. `test/arc-bubble.test.ts` checks that no bubble
+overlaps a bar or a data label in 10 layouts (both orientations, a bridge
+overshooting both pillars). Three of them fail on the 1.8.0.0 code.
+
 ## [1.8.0.0] - 2026-10-26
 
 ### Added — the DAX Builder's arc bubble and text size, in the visual

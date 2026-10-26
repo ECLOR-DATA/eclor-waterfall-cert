@@ -3587,6 +3587,12 @@ export class Visual implements IVisual {
     };
     const arcBoxesBySlot = arcPlans.map(arcLabelBox);
     const arcMaxBoxH = arcBoxesBySlot.reduce((m, b) => Math.max(m, b.h), 0);
+    const arcBubbleLift = arcBubbleOn
+      ? Math.max(0, Math.ceil(arcMaxBoxH / 2) + bridgeFont.size + 10 - variationArcDrop)
+      : 0;
+    const arcBubbleShiftV = arcBubbleOn
+      ? Math.ceil(arcBoxesBySlot.reduce((m, b) => Math.max(m, b.w), 0) / 2)
+      : 0;
     const arcAboveLine = arcLegacy
       ? variationFont.size + variationArcLabelGap
       : arcBubbleOn
@@ -3594,7 +3600,7 @@ export class Visual implements IVisual {
         : variationArcLabelGap + arcMaxBoxH - 2;
     const arcRowStep = arcLegacy ? variationFont.size + 3 : arcMaxBoxH + 3;
     const variationArcBaseBlockH =
-      variationShow && variationArcsCount > 0 ? arcAboveLine + variationArcDrop + 6 : 0;
+      variationShow && variationArcsCount > 0 ? arcAboveLine + variationArcDrop + arcBubbleLift + 6 : 0;
 
     let arcStaggerRows = 0;
     if (variationShow && variationArcsCount > 1 && !vertical) {
@@ -3786,7 +3792,7 @@ export class Visual implements IVisual {
           const maxW = arcBoxesBySlot.reduce((m, b) => Math.max(m, b.w), 0);
           vArcBlockW =
             variationArcDrop +
-            (arcBubbleOn ? Math.round(maxW / 2) : variationArcLabelGap + Math.round(maxW)) +
+            (arcBubbleOn ? Math.round(maxW / 2) + arcBubbleShiftV : variationArcLabelGap + Math.round(maxW)) +
             6 +
             24;
         }
@@ -5127,7 +5133,7 @@ export class Visual implements IVisual {
               }
             }
           }
-          const xArc = arcWall + variationArcDrop;
+          const xArc = arcWall + variationArcDrop + arcBubbleShiftV;
 
           const labelText = arcLabelText(arcLines);
           const escapedLabel = this.escapeXml(labelText);
@@ -5191,7 +5197,7 @@ export class Visual implements IVisual {
         for (let mid = iK + 1; mid < iK1; mid++) {
           arcCeiling = Math.min(arcCeiling, yScaleClamped(items[mid].y1));
         }
-        const yArc = arcCeiling - variationArcDrop;
+        const yArc = arcCeiling - variationArcDrop - arcBubbleLift;
 
         const labelText = arcLabelText(arcLines);
         const escapedLabel = this.escapeXml(labelText);

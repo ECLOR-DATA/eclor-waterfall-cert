@@ -341,6 +341,92 @@ describe("render — vertical orientation", () => {
   });
 });
 
+describe("render — the bubble never covers a bar or a data label", () => {
+  const VALUES = [2500, 300, 100, 2900, -220, -390, 2290];
+  const OVERSHOOT = [2500, 900, -800, 2600, -220, -390, 1990];
+  function bridgeDv(arc: Record<string, unknown>, general: Record<string, unknown> = {}, values = VALUES): Any {
+    const flags = [true, false, false, true, false, false, true];
+    const dv: Any = dvBuild({
+      cats: [
+        {
+          name: "Year",
+          values: ["FY23", "Volume", "Price", "FY24", "Mix", "Churn", "FY25"],
+          objects: flags.map((f) => ({ pillars: { isPillar: f } }))
+        }
+      ],
+      vals: [{ name: "EBITDA", role: "actual", values }]
+    });
+    dv.metadata.objects = {
+      general,
+      grandTotal: { showGrandTotal: false },
+      variationArc: { show: true, defaultSource: "auto-both", lineColor: { solid: { color: LINE } }, ...arc }
+    };
+    return dv;
+  }
+  type Box = { x0: number; x1: number; y0: number; y1: number };
+  const num = (e: Element, a: string): number => Number(e.getAttribute(a));
+  const bubbleBox = (e: Element): Box => {
+    const tag = e.tagName.toLowerCase();
+    if (tag === "rect") {
+      return { x0: num(e, "x"), x1: num(e, "x") + num(e, "width"), y0: num(e, "y"), y1: num(e, "y") + num(e, "height") };
+    }
+    const rx = tag === "circle" ? num(e, "r") : num(e, "rx");
+    const ry = tag === "circle" ? num(e, "r") : num(e, "ry");
+    return { x0: num(e, "cx") - rx, x1: num(e, "cx") + rx, y0: num(e, "cy") - ry, y1: num(e, "cy") + ry };
+  };
+  const textBox = (t: Element): Box => {
+    const size = num(t, "font-size") || 12;
+    const w = (t.textContent ?? "").length * size * 0.55;
+    const x = num(t, "x");
+    const anchor = t.getAttribute("text-anchor");
+    const x0 = anchor === "middle" ? x - w / 2 : anchor === "end" ? x - w : x;
+    return { x0, x1: x0 + w, y0: num(t, "y") - 0.8 * size, y1: num(t, "y") + 0.2 * size };
+  };
+  const overlaps = (a: Box, b: Box): boolean => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
+
+  function expectClear(target: HTMLElement): void {
+    const b = bubbles(target);
+    expect(b.length).toBe(2);
+    const own = new Set(b.map((e) => e.nextElementSibling));
+    const texts = Array.from(target.querySelectorAll("text")).filter((t) => !own.has(t));
+    const bars = Array.from(target.querySelectorAll(".wf-bar > rect:first-child"));
+    expect(bars.length).toBeGreaterThan(0);
+    for (const e of b) {
+      const box = bubbleBox(e);
+      for (const t of texts) expect({ label: t.textContent, hit: overlaps(box, textBox(t)) }).toEqual({ label: t.textContent, hit: false });
+      for (const r of bars) {
+        const rb = { x0: num(r, "x"), x1: num(r, "x") + num(r, "width"), y0: num(r, "y"), y1: num(r, "y") + num(r, "height") };
+        expect(overlaps(box, rb)).toBe(false);
+      }
+    }
+  }
+
+  const BIG = { labelStyle: "bubble", bubbleShape: "circle", labelLayout: "stack" };
+  test.each([
+    ["circle, along 30", { ...BIG, labelAlong: 30 }],
+    ["circle, along 70", { ...BIG, labelAlong: 70 }],
+    ["ellipse, two lines + caption", { labelStyle: "bubble", labelLayout: "stack", caption: "vs N-1" }],
+    ["pill, one line", { labelStyle: "bubble", bubbleShape: "pill", pctParens: true }]
+  ])("horizontal: %s", (_name, arc) => {
+    expectClear(render(bridgeDv(arc)).target);
+  });
+
+  test.each([
+    ["circle", BIG, VALUES],
+    ["pill, one line", { labelStyle: "bubble", bubbleShape: "pill", pctParens: true }, VALUES],
+    ["circle, a bridge overshooting both pillars", BIG, OVERSHOOT],
+    ["pill, a bridge overshooting both pillars", { labelStyle: "bubble", bubbleShape: "pill", pctParens: true }, OVERSHOOT]
+  ])("vertical: %s", (_name, arc, values) => {
+    expectClear(render(bridgeDv(arc, { orientation: "vertical" }, values)).target);
+  });
+  test.each([
+    ["circle, a bridge overshooting both pillars", BIG],
+    ["ellipse, two lines", { labelStyle: "bubble", labelLayout: "stack" }]
+  ])("horizontal: %s", (_name, arc) => {
+    expectClear(render(bridgeDv(arc, {}, OVERSHOOT)).target);
+  });
+});
+
 describe("pane — only the relevant arc slices show", () => {
   const arcSlices = (v: Any): string[] => {
     const fm = v.getFormattingModel();
