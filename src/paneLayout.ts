@@ -52,7 +52,8 @@ const CARD_SPECS: CardSpec[] = [
           "general-mode",
           "general-orientation",
           "layout-barWidth",
-          "general-showItemsWithNoData"
+          "general-showItemsWithNoData",
+          "general-textScale"
         ]
       }
     ]
@@ -241,11 +242,53 @@ const CARD_SPECS: CardSpec[] = [
           "variationArc-displayUnits",
           "variationArc-decimalPlaces",
           "variationArc-customFormat",
+          "variationArc-labelStyle",
           "variationArc-labelColor",
+          "variationArc-labelColorBySign",
+          "variationArc-labelPosColor",
+          "variationArc-labelNegColor",
           "variationArc-font",
           "variationArc-labelBgShow",
           "variationArc-labelBgColor",
           "variationArc-labelBgTransparency"
+        ]
+      },
+      {
+        uid: "variationArcLabelLayout-group",
+        displayName: "Label layout",
+        slices: [
+          "variationArc-labelLayout",
+          "variationArc-labelOrder",
+          "variationArc-pctParens",
+          "variationArc-pctFontSize",
+          "variationArc-pctItalic",
+          "variationArc-labelPrefix",
+          "variationArc-caption",
+          "variationArc-captionPosition",
+          "variationArc-captionFontSize",
+          "variationArc-labelAlong"
+        ]
+      },
+      {
+        uid: "variationArcBubble-group",
+        displayName: "Bubble",
+        slices: [
+          "variationArc-bubbleShape",
+          "variationArc-bubbleCornerRadius",
+          "variationArc-bubblePaddingX",
+          "variationArc-bubblePaddingY",
+          "variationArc-bubbleShadow",
+          "variationArc-bubbleFillMode",
+          "variationArc-bubbleFillColor",
+          "variationArc-bubblePosFillColor",
+          "variationArc-bubbleNegFillColor",
+          "variationArc-bubbleFillTransparency",
+          "variationArc-bubbleBorderMode",
+          "variationArc-bubbleBorderColor",
+          "variationArc-bubblePosBorderColor",
+          "variationArc-bubbleNegBorderColor",
+          "variationArc-bubbleBorderWidth",
+          "variationArc-bubbleBorderStyle"
         ]
       },
       {
@@ -272,7 +315,20 @@ const CARD_SPECS: CardSpec[] = [
         uid: "legendLayout-group",
         displayName: "Layout",
         inheritDisabled: false,
-        slices: ["legend-layout", "legend-splitLabelWrap"]
+        slices: [
+          "legend-layout",
+          "legend-splitStyle",
+          "legend-splitTextBarColors",
+          "legend-splitTextSliceGap",
+          "legend-splitTextSliceLabels",
+          "legend-bridgeScope",
+          "legend-bridgeList",
+          "legend-splitShowPartName",
+          "legend-splitShowPartValue",
+          "legend-splitShowRemainderLabel",
+          "legend-splitLabelWrap",
+          "legend-splitShowTotal"
+        ]
       },
       {
         uid: "legendOptions-group",

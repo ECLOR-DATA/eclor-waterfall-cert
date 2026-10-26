@@ -7,7 +7,8 @@ Advanced waterfall chart for Power BI with dual modes (**Cumulative** and **Comp
 - **Cumulative mode** — N pillars chained by bridges, with optional synthetic Grand Total pillar.
 - **Comparison mode** — 2+ measures compared through a synthesized variance bridge (supports M ≥ 3); any segment between two pillars can be hidden or aggregated into one labelled bridge.
 - **Y-axis floor offset** — amplify small variations by raising the chart floor; broken-axis indicator drawn automatically.
-- **Variation arcs** — brackets between consecutive pillars showing Δ% / Δabs / custom measure, configurable per arc.
+- **Variation arcs** — brackets between consecutive pillars showing Δ% / Δabs / custom measure, configurable per arc; the label as text above the line or inside a bubble on it (ellipse, circle, pill, rectangle, square; fill and border fixed or by sign), on one or two lines, with prefix and caption.
+- **Text size (%)** — one multiplier over every text of the chart, for visuals shrunk to a dashboard tile.
 - **Analysis table** — Excel-style footnote rows under the chart, aligned with bars, with matrix-style cross-filtering (per-cell composite selection) and focused per-cell tooltips.
 - **Legend** — stacked segments, or "Split bridges": a bridge with a legend split becomes an inline mini-cascade with named parts. Per-measure and per-category colour overrides, conditional-formatting (fx) colour rules on bars and labels, bridge labels at the tip or centred.
 - **Accessibility** — keyboard navigation, ARIA labels, visible focus indicators, high-contrast theme support.

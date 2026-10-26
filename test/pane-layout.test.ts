@@ -146,14 +146,15 @@ describe("relayoutPane — target structure (static build)", () => {
     expect(fm.cards.map((c: Any) => c.uid)).toEqual(EXPECTED_CARD_ORDER);
   });
 
-  test("General = mode + orientation + bar width + no-data, single headerless group", () => {
+  test("General = mode + orientation + bar width + no-data + text size, single headerless group", () => {
     const general = cardByUid(relayoutPane(builtModel()), "general-card");
     expect(groupUids(general)).toEqual(["general-group"]);
     expect(sliceUids(general.groups[0])).toEqual([
       "general-mode",
       "general-orientation",
       "layout-barWidth",
-      "general-showItemsWithNoData"
+      "general-showItemsWithNoData",
+      "general-textScale"
     ]);
     expect(general.groups[0].displayName).toBeUndefined();
   });
@@ -235,6 +236,8 @@ describe("relayoutPane — target structure (static build)", () => {
     expect(toggleDescriptor(cardByUid(fm, "variationArc-card"))).toBe("variationArc.show");
     expect(groupUids(cardByUid(fm, "variationArc-card"))).toEqual([
       "variationArcLabel-group",
+      "variationArcLabelLayout-group",
+      "variationArcBubble-group",
       "variationArcLine-group"
     ]);
     expect(groupUids(cardByUid(fm, "legend-card"))).toEqual([
@@ -347,7 +350,7 @@ describe("relayoutPane — full pipeline (getFormattingModel integration)", () =
     }
   });
 
-  test("arcs on: Label/Line sub-groups then one per-arc group; isPillar groups trail Pillars", () => {
+  test("arcs on: Label / Label layout / Line sub-groups then one per-arc group; isPillar groups trail Pillars", () => {
     const v = makeVisual();
     runUpdate(
       v,
@@ -368,9 +371,13 @@ describe("relayoutPane — full pipeline (getFormattingModel integration)", () =
     const arc = cardByUid(fm, "variationArc-card");
     expect(toggleDescriptor(arc)).toBe("variationArc.show");
     const arcGroups = groupUids(arc);
-    expect(arcGroups.slice(0, 2)).toEqual(["variationArcLabel-group", "variationArcLine-group"]);
-    expect(arcGroups.length).toBe(3);
-    expect(arcGroups[2].startsWith("arcDest_")).toBe(true);
+    expect(arcGroups.slice(0, 3)).toEqual([
+      "variationArcLabel-group",
+      "variationArcLabelLayout-group",
+      "variationArcLine-group"
+    ]);
+    expect(arcGroups.length).toBe(4);
+    expect(arcGroups[3].startsWith("arcDest_")).toBe(true);
 
     const pillarGroups = groupUids(cardByUid(fm, "pillars-card"));
     expect(pillarGroups.slice(0, 3)).toEqual([

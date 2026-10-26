@@ -5,6 +5,246 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0.0] - 2026-10-26
+
+### Added — the DAX Builder's arc bubble and text size, in the visual
+
+« Refacto l'ensemble sur le visuel custom » — the options built in the
+Waterfall DAX Builder this month now exist in the visual itself. Every
+default reproduces the 1.7.0.0 render: the whole jest suite was rendered
+before and after (751 SVG frames, every suite but the 10k-row perf one) and
+compared byte for byte, with no difference.
+
+**Variation arc → Label** gains `Label style` (`variationArc.labelStyle`):
+- *Text above the line*, the default, is the historical label;
+- *Bubble on the line* draws a shape centred ON the bracket line with the
+  label inside. In vertical, the shape is centred on the bracket's vertical
+  line, and the right-hand arc block only reserves its right half.
+
+`Label color by sign` (with *Increase* / *Decrease* colours) colours each
+arc's text by its own variation, destination − departure, in both styles.
+High contrast still wins.
+
+**Variation arc → Label layout** (new group, both styles):
+- `Value and percentage`: *On one line* (default, « +76 | +6.3% ») or
+  *On two lines*.
+- `Order`: value first (default) or percentage first.
+- `Percentage in brackets`: « +76 (+6.3%) » on one line, « (+6.3%) » on
+  two. Only offered with *Data value, percentage*.
+- `Percentage text size` (0 = same as the label) and `Percentage in italics`.
+- `Prefix` before the first number, e.g. « Δ ».
+- `Caption line`, e.g. « vs N-1 », above or below, at its own size
+  (0 = same).
+- `Position along the arc (%)`: 0 puts the label over the departure pillar,
+  100 over the arrival; the default 50 keeps the old midpoint expression
+  verbatim.
+
+Stacked lines are one `<text>` with a `<tspan>` per line. The label's real
+footprint (text block or bubble) now sizes everything that used to assume
+one line:
+- the headroom above the chart;
+- the upward-only de-collision between neighbouring arcs and its reserved
+  rows;
+- the vertical arc block.
+
+The label background still applies to a multi-line text label.
+
+**Variation arc → Bubble** (new group, shown only for the bubble style):
+- `Shape`: ellipse (default), circle, pill, rectangle, square;
+  `Corner radius` is shown for rectangle and square only.
+- `Horizontal` / `Vertical padding` (8 / 5 px) and `Shadow`. The shadow
+  filter `wf-arc-shadow` is defined once and shared by every bubble.
+- `Fill`: fixed (white), by sign (increase / decrease) or none, plus
+  `Fill transparency`.
+- `Border`: fixed, by sign or none, plus `Border width` and
+  `Border style` (solid, dashed, dotted). An empty border colour follows the
+  arc's line colour, per-arc fx included.
+
+An ellipse or circle grows until the corners of the text block are inside
+the curve. Padding alone let a two-line label poke through an ellipse sized
+for one line; the builder still has that flaw.
+
+The pure logic lives in `src/arcBubble.ts`: the label plan
+(`arcLabelLines`), the bubble geometry and its SVG. The defaults plan one
+line with one style, `isPlainArcLabel`, and every arc then takes the
+pre-1.8 draw path unchanged.
+
+**General → `Text size (%)`** (`general.textScale`, default 100, range
+25–400) is one multiplier over every chart font: axes, titles, data labels,
+rails, arc, legend, grand total and the analysis table. It is applied once,
+where `buildSVG` reads the fonts, so every margin, clearance and wrap budget
+derived from a font size follows it. It is meant for a visual shrunk to a
+dashboard tile (Nicolas' 522 × 341 report visual). At 100 the font objects
+are passed through untouched.
+
+Not ported, on purpose:
+- The builder's separate value and % arc measures. The visual already
+  labels arc k with the k-th « Variation arc value » measure (1.6.0.0).
+- The hard-coded pillar labels. Pillars already take the measure's name,
+  and Power BI's native « Rename for this visual » covers a fixed text.
+- The 13 px defaults. Defaults stay at the 1.7.0.0 render.
+- The locale-proof numbers. They are a DAX problem only; the visual formats
+  with the host locale.
+
+Tests: `test/arc-bubble.test.ts` (33) covers:
+- the plan, the geometry and the SVG;
+- both orientations;
+- paint by sign, the line-colour fallback, the shared shadow and high
+  contrast;
+- pane visibility and the text scale.
+
+`test/pane-layout.test.ts` covers the new groups.
+
+**Desktop pass owed** (CLAUDE.md open item 11): the bubble and two-line
+label on a real report in both orientations, the new TextInputs (`Prefix`,
+`Caption line`) saved and reloaded from the Format pane, and `Text size (%)`
+on a small tile.
+
+## [1.7.0.0] - 2026-10-22
+
+### Added — Split bridges: bridge selection, bridge total, part name / value toggles
+
+« Staker que sur certains bridges les légendes, avoir du coup le total aussi
+de ce bridge affiché, et pouvoir afficher ou non la légende en libellé + le
+montant du stack. » The production slide only reconciles one way: « −14 » is
+the Division D TOTAL (+78 +22 +127 −14 +5 −92 = +126, the arc), « Cyber +10 »
+the named part, and the unnamed remainder (−24) carries no label. 1.5.0.0
+could not draw that: it labelled every part, never the net, and split every
+bridge whose rows carried two legend values.
+
+Eight new properties in **Legend → Layout** (same group as `Layout` /
+`Wrap part labels`):
+
+- **`Split style`** (`legend.splitStyle`) = *Mini-cascade* (default, the
+  1.5.0.0 render) / *Total + detail text* — the second production slide:
+  the split bridge stays ONE plain net bar with its plain bridge label (that
+  label IS the total), and its parts are listed beside it as a small text
+  block, one line per live part, value then name (« +47 Cyber »), any number
+  of lines, gains first (signed value descending). Same part toggles as the
+  cascade (name / value / remainder); *Bridge total* and *Wrap part labels*
+  leave the pane in this style. Font: the bridge label's family and colour,
+  80 % of its size (≥ 7 px), not bold. Placement: on the net movement's side,
+  6 px past both the bar and its label — anchor end left of them for a net
+  loss and anchor start right of them for a net gain in vertical, lines
+  centred on the row; above / below, anchor middle on the bar, in
+  horizontal; the mirror side when the frame blocks it, clamped last
+  (`splitDetailLayout`, the `splitTotalSpan` ladder). No cascade dip is
+  reserved in the value range. Class `wf-split-detail`, in the bar's
+  clickable group.
+- **`Colour the bar by part`** (`legend.splitTextBarColors`, default on,
+  text style only): « il faut aussi voir dans la barre les différentes
+  couleurs » — the net bar's span (runningBefore → runningAfter) is sliced
+  in proportion to |part| / Σ|parts|, each slice in its part's OWN colour
+  (fx per part, then the card — the cascade's resolution), full thickness,
+  laid from runningBefore in the detail-line order (`splitBarSlices`).
+  Same-sign parts make an exact stack; with mixed signs it is a proportional
+  composition — the amounts are in the text, the slices show the mix.
+  Connectors and the clickable group are unchanged. The bridge label (the
+  total) always goes to the movement's tip on a sliced bar, even under
+  *Bridges → Position = Center*: centred, « −44 » sat on the middle slice
+  and read as that part's value (screenshot check). Off = the plain
+  single-colour bar, whose label follows the position setting as before.
+- **`Gap between parts`** (`legend.splitTextSliceGap`, px, default 2, 0–8,
+  coloured bar only): « la barre séparée par valeur, avec un espace blanc,
+  pour distinguer deux valeurs négatives » — two losses share the sign
+  colour and used to merge. A transparent gap (the background shows through,
+  so dark themes and high contrast hold) at every internal boundary, half
+  taken from each neighbour; the first slice keeps its edge on runningBefore,
+  the last on runningAfter (`gapSliceSpans`). A bar too short for its gaps
+  shrinks the gap; a slice never drops below 1 px nor inverts. 0 = glued.
+- **`Values in parts`** (`legend.splitTextSliceLabels`, default off,
+  coloured bar only): each part's value (signed, bridge format pipeline)
+  centred in its own slice, ONLY where it fits (`sliceLabelFits`: vertical
+  needs the slice's length, horizontal its height plus the bar's width);
+  a sliver keeps its value in the detail block only. Detail-block font,
+  text in contrast with the slice's fill, gated by *Bridges → Data labels*,
+  class `wf-split-slice-label` in the bar's clickable group.
+- **`Bridges`** (`legend.bridgeScope`) = *All bridges* (default) / *Listed
+  bridges only*, with **`Listed bridges`** (`legend.bridgeList`, text, shown
+  only for the list): category labels as the axis prints them, separated by
+  `;` or a newline (a comma is legal inside a label), trimmed,
+  case-insensitive. Applies to BOTH layouts: under *Split bridges* an
+  unlisted bridge never splits (plain net bar + plain label, and the Y range
+  no longer reserves its dip); under *Stacked* it is a flat bar in the
+  Bridges colour — the same fallback as an *Apply to* exclusion. An empty
+  list touches no bridge. Pillars and the Grand Total are not concerned.
+- **`Part name`** / **`Part value`** (`legend.splitShowPartName` /
+  `splitShowPartValue`, default on): « Cyber +10 », « Cyber », « +10 » or no part
+  label. *Wrap part labels* only applies when both are shown.
+- **`Remainder label`** (`legend.splitShowRemainderLabel`, default on): off
+  keeps the unnamed (blank-legend) part's bar but drops its label.
+- **`Bridge total`** (`legend.splitShowTotal`, default off): the split
+  bridge's NET value as one extra **bold** label, same format pipeline as a
+  bridge label (custom format → dynamic format → model format, units,
+  decimals, sign), placed just past everything the bridge already drew — the
+  mini-cascade AND its part labels — on the net movement's side: right of
+  the row for a net gain and left for a net loss in vertical, above / below
+  in horizontal; the mirror side when the frame blocks it, clamped into the
+  frame as a last resort. Gated by *Bridges → Data labels*, in the bar's
+  clickable group, colours from the category's (net-sign) fx vote.
+- The production look is *Bridge total* on + *Remainder label* off.
+- *Split style* and the part / total toggles are visible only under *Split
+  bridges*; *Listed bridges* only under *Listed bridges only*.
+
+Every default reproduces the 1.6.2.0 render: verified byte-for-byte on 30
+renders (cumulative and comparison, both layouts, both orientations, wrap,
+centred labels) against the 1.6.2.0 sources; only the Format pane gains the
+new slices. Pure logic in [src/subBridges.ts](src/subBridges.ts)
+(`parseBridgeList`, `bridgeInScope`, `splitPartLabelParts`, `splitTotalSpan`,
+`parseSplitStyle`, `splitDetailLines`, `splitDetailLayout`, `splitBarSlices`).
+Tests: `test/split-bridges-options.test.ts` (69, harness fx + matrix ON).
+
+**Desktop pass still owed**: the `Listed bridges` TextInput round-trip from
+the Format pane (type, save, reload), the total's placement and the detail
+block's placement on a real production report in both orientations.
+
+### Added — tooling: Waterfall DAX Builder (not part of the .pbiviz)
+
+« L'équivalent du visuel en maquette HTML : l'utilisateur saisit ses tables et
+colonnes, la sortie est une mesure SVG DAX à mettre dans le report. »
+`tools/dax-svg-builder/waterfall-dax-builder.html` (kept in the development
+repository, not mirrored here) is one self-contained page. You fill in the bindings and set the layout:
+both orientations, an axis floor of auto / % / zero with broken-axis marks,
+pillars, bridges, the variance column, the arc and number formats. It also
+covers this release's legend options:
+
+- splitting only the listed bridges;
+- the mini-cascade style, with toggles for part name, part value,
+  remainder label and bridge total;
+- the « Total + detail text » style, with the bar sliced by part colour,
+  a gap between parts (2 px by default) and optional values inside them.
+
+The variation arc's bubble has its own options: shape (ellipse, circle,
+pill, rectangle, square, rounded corners), border (fixed, by sign, none;
+width, dashes), fill opacity, shadow, position along the arc, value and %
+on two lines or one, their order, the %'s size and style, a prefix and a
+caption line. Its value and % can come from measures; a text (`FORMAT`)
+measure is printed as is.
+
+The measure never passes a locale to `FORMAT`. The first Desktop run showed
+why: in a fr-FR model, `FORMAT(x, "0.0", "en-US")` printed `125,0`, SVG read
+each coordinate as two numbers, and only the first letter of each label
+stayed in place. Coordinates and labels are now built from digit runs, and the
+preview runs as a fr-FR model. The page draws no title and no background:
+the report's visual carries them.
+
+A single **text size (%)** scales every text of the image (and the arc's
+column), for a visual smaller than the image. A pillar label left empty shows
+the pillar's measure name. The default image is 522 × 341, the size of the
+first report visual, and every text defaults to 13 px.
+
+The page outputs a DAX measure returning an SVG image URL, with data
+category Image URL, or the same measure in TMDL. Its `-- @config` line
+re-imports every setting.
+
+The preview runs the generated measure through a strict mini DAX
+interpreter on sample rows, so there is no second renderer that could
+drift from the DAX. `test/dax-svg-builder.test.ts` (64 tests) loads that
+engine from the shipped HTML.
+`GUIDE.md` is a short English guide to the
+columns, labels and measures the page asks for. **Not yet run in Power BI** (CLAUDE.md open
+item 10).
+
 ## [1.6.2.0] - 2026-10-01
 
 ### Changed — support and source URLs point to the certification repository

@@ -178,13 +178,23 @@ class GeneralCardSettings extends FormattingSettingsCard {
     displayName: "Show items with no data",
     value: false
   });
+  textScale = new formattingSettings.NumUpDown({
+    name: "textScale",
+    displayName: "Text size (%)",
+    value: 100,
+    options: {
+      minValue: { type: 0, value: 25 },
+      maxValue: { type: 1, value: 400 }
+    }
+  });
   name: string = "general";
   displayName: string = "General";
   displayNameKey: string = "Visual_General";
   slices: FormattingSettingsSlice[] = [
     this.mode,
     this.orientation,
-    this.showItemsWithNoData
+    this.showItemsWithNoData,
+    this.textScale
   ];
 }
 
@@ -828,9 +838,72 @@ class LegendCardSettings extends formattingSettings.CompositeCard {
     ],
     value: { value: "stacked", displayName: "Stacked" }
   });
+  splitStyle = new formattingSettings.ItemDropdown({
+    name: "splitStyle",
+    displayName: "Split style",
+    items: [
+      { value: "cascade", displayName: "Mini-cascade" },
+      { value: "text", displayName: "Total + detail text" }
+    ],
+    value: { value: "cascade", displayName: "Mini-cascade" }
+  });
+  splitTextBarColors = new formattingSettings.ToggleSwitch({
+    name: "splitTextBarColors",
+    displayName: "Colour the bar by part",
+    value: true
+  });
+  splitTextSliceGap = new formattingSettings.NumUpDown({
+    name: "splitTextSliceGap",
+    displayName: "Gap between parts",
+    value: 2,
+    options: {
+      minValue: { type: 0, value: 0 },
+      maxValue: { type: 1, value: 8 }
+    }
+  });
+  splitTextSliceLabels = new formattingSettings.ToggleSwitch({
+    name: "splitTextSliceLabels",
+    displayName: "Values in parts",
+    value: false
+  });
   splitLabelWrap = new formattingSettings.ToggleSwitch({
     name: "splitLabelWrap",
     displayName: "Wrap part labels",
+    value: false
+  });
+  bridgeScope = new formattingSettings.ItemDropdown({
+    name: "bridgeScope",
+    displayName: "Bridges",
+    items: [
+      { value: "all", displayName: "All bridges" },
+      { value: "list", displayName: "Listed bridges only" }
+    ],
+    value: { value: "all", displayName: "All bridges" }
+  });
+  bridgeList = new formattingSettings.TextInput({
+    name: "bridgeList",
+    displayName: "Listed bridges",
+    placeholder: "Division D; Wholesale",
+    value: ""
+  });
+  splitShowPartName = new formattingSettings.ToggleSwitch({
+    name: "splitShowPartName",
+    displayName: "Part name",
+    value: true
+  });
+  splitShowPartValue = new formattingSettings.ToggleSwitch({
+    name: "splitShowPartValue",
+    displayName: "Part value",
+    value: true
+  });
+  splitShowRemainderLabel = new formattingSettings.ToggleSwitch({
+    name: "splitShowRemainderLabel",
+    displayName: "Remainder label",
+    value: true
+  });
+  splitShowTotal = new formattingSettings.ToggleSwitch({
+    name: "splitShowTotal",
+    displayName: "Bridge total",
     value: false
   });
   show = new formattingSettings.ToggleSwitch({
@@ -960,7 +1033,17 @@ class LegendCardSettings extends formattingSettings.CompositeCard {
     displayName: "Options",
     slices: [
       this.layout,
+      this.splitStyle,
+      this.splitTextBarColors,
+      this.splitTextSliceGap,
+      this.splitTextSliceLabels,
+      this.bridgeScope,
+      this.bridgeList,
+      this.splitShowPartName,
+      this.splitShowPartValue,
+      this.splitShowRemainderLabel,
       this.splitLabelWrap,
+      this.splitShowTotal,
       this.show,
       this.position,
       this.applyTo,
@@ -1070,6 +1153,229 @@ class VariationArcCardSettings extends formattingSettings.CompositeCard {
   });
   labelBgTransparency = makeLabelBgTransparency("Background transparency (%)");
   font = makeFontControl(12, false);
+
+  labelStyle = new formattingSettings.ItemDropdown({
+    name: "labelStyle",
+    displayName: "Label style",
+    items: [
+      { value: "text", displayName: "Text above the line" },
+      { value: "bubble", displayName: "Bubble on the line" }
+    ],
+    value: { value: "text", displayName: "Text above the line" }
+  });
+  labelLayout = new formattingSettings.ItemDropdown({
+    name: "labelLayout",
+    displayName: "Value and percentage",
+    items: [
+      { value: "inline", displayName: "On one line" },
+      { value: "stack", displayName: "On two lines" }
+    ],
+    value: { value: "inline", displayName: "On one line" }
+  });
+  labelOrder = new formattingSettings.ItemDropdown({
+    name: "labelOrder",
+    displayName: "Order",
+    items: [
+      { value: "value", displayName: "Value first" },
+      { value: "pct", displayName: "Percentage first" }
+    ],
+    value: { value: "value", displayName: "Value first" }
+  });
+  pctParens = new formattingSettings.ToggleSwitch({
+    name: "pctParens",
+    displayName: "Percentage in brackets",
+    value: false
+  });
+  pctFontSize = new formattingSettings.NumUpDown({
+    name: "pctFontSize",
+    displayName: "Percentage text size (0 = same)",
+    value: 0,
+    options: {
+      minValue: { type: 0, value: 0 },
+      maxValue: { type: 1, value: 60 }
+    }
+  });
+  pctItalic = new formattingSettings.ToggleSwitch({
+    name: "pctItalic",
+    displayName: "Percentage in italics",
+    value: false
+  });
+  labelPrefix = new formattingSettings.TextInput({
+    name: "labelPrefix",
+    displayName: "Prefix",
+    placeholder: "e.g. Δ",
+    value: ""
+  });
+  caption = new formattingSettings.TextInput({
+    name: "caption",
+    displayName: "Caption line",
+    placeholder: "e.g. vs N-1",
+    value: ""
+  });
+  captionPosition = new formattingSettings.ItemDropdown({
+    name: "captionPosition",
+    displayName: "Caption position",
+    items: [
+      { value: "above", displayName: "Above" },
+      { value: "below", displayName: "Below" }
+    ],
+    value: { value: "above", displayName: "Above" }
+  });
+  captionFontSize = new formattingSettings.NumUpDown({
+    name: "captionFontSize",
+    displayName: "Caption text size (0 = same)",
+    value: 0,
+    options: {
+      minValue: { type: 0, value: 0 },
+      maxValue: { type: 1, value: 60 }
+    }
+  });
+  labelAlong = new formattingSettings.NumUpDown({
+    name: "labelAlong",
+    displayName: "Position along the arc (%)",
+    value: 50,
+    options: {
+      minValue: { type: 0, value: 0 },
+      maxValue: { type: 1, value: 100 }
+    }
+  });
+  labelColorBySign = new formattingSettings.ToggleSwitch({
+    name: "labelColorBySign",
+    displayName: "Label color by sign",
+    value: false
+  });
+  labelPosColor = new formattingSettings.ColorPicker({
+    name: "labelPosColor",
+    displayName: "Increase label color",
+    value: { value: "#2E9E68" }
+  });
+  labelNegColor = new formattingSettings.ColorPicker({
+    name: "labelNegColor",
+    displayName: "Decrease label color",
+    value: { value: "#C0392B" }
+  });
+  bubbleShape = new formattingSettings.ItemDropdown({
+    name: "bubbleShape",
+    displayName: "Shape",
+    items: [
+      { value: "ellipse", displayName: "Ellipse" },
+      { value: "circle", displayName: "Circle" },
+      { value: "pill", displayName: "Pill" },
+      { value: "rect", displayName: "Rectangle" },
+      { value: "square", displayName: "Square" }
+    ],
+    value: { value: "ellipse", displayName: "Ellipse" }
+  });
+  bubbleCornerRadius = new formattingSettings.NumUpDown({
+    name: "bubbleCornerRadius",
+    displayName: "Corner radius (px)",
+    value: 0,
+    options: {
+      minValue: { type: 0, value: 0 },
+      maxValue: { type: 1, value: 60 }
+    }
+  });
+  bubblePaddingX = new formattingSettings.NumUpDown({
+    name: "bubblePaddingX",
+    displayName: "Horizontal padding (px)",
+    value: 8,
+    options: {
+      minValue: { type: 0, value: 0 },
+      maxValue: { type: 1, value: 80 }
+    }
+  });
+  bubblePaddingY = new formattingSettings.NumUpDown({
+    name: "bubblePaddingY",
+    displayName: "Vertical padding (px)",
+    value: 5,
+    options: {
+      minValue: { type: 0, value: 0 },
+      maxValue: { type: 1, value: 80 }
+    }
+  });
+  bubbleShadow = new formattingSettings.ToggleSwitch({
+    name: "bubbleShadow",
+    displayName: "Shadow",
+    value: false
+  });
+  bubbleFillMode = new formattingSettings.ItemDropdown({
+    name: "bubbleFillMode",
+    displayName: "Fill",
+    items: [
+      { value: "fixed", displayName: "Fixed color" },
+      { value: "sign", displayName: "By sign" },
+      { value: "none", displayName: "None" }
+    ],
+    value: { value: "fixed", displayName: "Fixed color" }
+  });
+  bubbleFillColor = new formattingSettings.ColorPicker({
+    name: "bubbleFillColor",
+    displayName: "Fill color",
+    value: { value: "#FFFFFF" }
+  });
+  bubblePosFillColor = new formattingSettings.ColorPicker({
+    name: "bubblePosFillColor",
+    displayName: "Increase fill",
+    value: { value: "#50BE87" }
+  });
+  bubbleNegFillColor = new formattingSettings.ColorPicker({
+    name: "bubbleNegFillColor",
+    displayName: "Decrease fill",
+    value: { value: "#E5533D" }
+  });
+  bubbleFillTransparency = new formattingSettings.NumUpDown({
+    name: "bubbleFillTransparency",
+    displayName: "Fill transparency (%)",
+    value: 0,
+    options: {
+      minValue: { type: 0, value: 0 },
+      maxValue: { type: 1, value: 100 }
+    }
+  });
+  bubbleBorderMode = new formattingSettings.ItemDropdown({
+    name: "bubbleBorderMode",
+    displayName: "Border",
+    items: [
+      { value: "fixed", displayName: "Fixed color" },
+      { value: "sign", displayName: "By sign" },
+      { value: "none", displayName: "None" }
+    ],
+    value: { value: "fixed", displayName: "Fixed color" }
+  });
+  bubbleBorderColor = new formattingSettings.ColorPicker({
+    name: "bubbleBorderColor",
+    displayName: "Border color (empty = line color)",
+    value: { value: "" }
+  });
+  bubblePosBorderColor = new formattingSettings.ColorPicker({
+    name: "bubblePosBorderColor",
+    displayName: "Increase border",
+    value: { value: "#2E9E68" }
+  });
+  bubbleNegBorderColor = new formattingSettings.ColorPicker({
+    name: "bubbleNegBorderColor",
+    displayName: "Decrease border",
+    value: { value: "#C0392B" }
+  });
+  bubbleBorderWidth = new formattingSettings.NumUpDown({
+    name: "bubbleBorderWidth",
+    displayName: "Border width (px)",
+    value: 1,
+    options: {
+      minValue: { type: 0, value: 0 },
+      maxValue: { type: 1, value: 8 }
+    }
+  });
+  bubbleBorderStyle = new formattingSettings.ItemDropdown({
+    name: "bubbleBorderStyle",
+    displayName: "Border style",
+    items: [
+      { value: "solid", displayName: "Solid" },
+      { value: "dash", displayName: "Dashed" },
+      { value: "dot", displayName: "Dotted" }
+    ],
+    value: { value: "solid", displayName: "Solid" }
+  });
   name: string = "variationArc";
   displayName: string = "Variation arc";
   displayNameKey: string = "Visual_VariationArc";
@@ -1095,7 +1401,37 @@ class VariationArcCardSettings extends formattingSettings.CompositeCard {
       this.labelBgShow,
       this.labelBgColor,
       this.labelBgTransparency,
-      this.font
+      this.font,
+      this.labelStyle,
+      this.labelLayout,
+      this.labelOrder,
+      this.pctParens,
+      this.pctFontSize,
+      this.pctItalic,
+      this.labelPrefix,
+      this.caption,
+      this.captionPosition,
+      this.captionFontSize,
+      this.labelAlong,
+      this.labelColorBySign,
+      this.labelPosColor,
+      this.labelNegColor,
+      this.bubbleShape,
+      this.bubbleCornerRadius,
+      this.bubblePaddingX,
+      this.bubblePaddingY,
+      this.bubbleShadow,
+      this.bubbleFillMode,
+      this.bubbleFillColor,
+      this.bubblePosFillColor,
+      this.bubbleNegFillColor,
+      this.bubbleFillTransparency,
+      this.bubbleBorderMode,
+      this.bubbleBorderColor,
+      this.bubblePosBorderColor,
+      this.bubbleNegBorderColor,
+      this.bubbleBorderWidth,
+      this.bubbleBorderStyle
     ]
   });
   groups: formattingSettings.Group[] = [this.generalGroup];
