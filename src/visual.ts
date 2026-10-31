@@ -32,6 +32,7 @@ import {
   formatActualLabel,
   formatIsPercent,
   distinctTickDecimals,
+  labelScaleDivisor,
   pickFormat,
   readDynamicFormat,
   safeHex,
@@ -48,6 +49,18 @@ import {
   resolveFillVariant
 } from "./svgPatterns";
 import { buildTooltipItems, TooltipBuildContext } from "./tooltip";
+import {
+  ScenarioOverride,
+  applyFixedScale,
+  impactOf,
+  niceTicks,
+  parseImpactPolarity,
+  parseScenario,
+  parseScenarioOverride,
+  resolveScenario,
+  scenarioPaint,
+  uniformScaleDecimals
+} from "./ibcs";
 import { relayoutPane } from "./paneLayout";
 import {
   OutlineGlobal,
@@ -59,8 +72,42 @@ import {
   planComparisonColumns,
   sameSignBridgeColor
 } from "./pillarOverrides";
-import { planSplitSegments, splitExtent, splitLabelText, splitSlots, splitSteps } from "./subBridges";
+import {
+  BridgeScope,
+  bridgeInScope,
+  gapSliceSpans,
+  makeBridgeScope,
+  parseSplitStyle,
+  planSplitSegments,
+  splitDetailFontSize,
+  splitDetailLayout,
+  splitBarSlices,
+  splitDetailLines,
+  sliceLabelFits,
+  splitExtent,
+  splitPartLabelParts,
+  splitSlots,
+  splitSteps,
+  splitTotalSpan
+} from "./subBridges";
 import { ARC_MEASURE_AUTO, ArcSlot, resolveArcMeasureIndex, totalArcSlots } from "./arcMeasures";
+import {
+  ArcLabelParts,
+  ArcLine,
+  ArcTextOptions,
+  BubbleGeometryOptions,
+  arcBlockHeight,
+  arcBlockWidth,
+  arcLabelLines,
+  arcLabelText,
+  arcLineBaselines,
+  arcTextSvg,
+  bubbleShadowDefs,
+  bubbleShapeSvg,
+  bubbleSize,
+  isPlainArcLabel,
+  readBubbleShape
+} from "./arcBubble";
 import {
   TABLE_COLUMN_WIDTH_MIN,
   TABLE_COLUMN_WIDTH_MAX,
@@ -173,6 +220,7 @@ interface CategoryDisplayInfo {
   bridgeLabelColor?: string;
   bridgeLabelBgColor?: string;
   fillStyleOverride?: FillVariantOverride;
+  scenarioOverride?: ScenarioOverride;
   outlineOverride?: OutlineOverride;
   pillarLabelColor?: string;
   pillarLabelBgColor?: string;
@@ -201,6 +249,7 @@ interface ActualMeasureInfo {
   measureLabelBgColor?: string;
   fillStyleOverride?: FillVariantOverride;
   outlineOverride?: OutlineOverride;
+  scenarioOverride?: ScenarioOverride;
   showBridgesBefore?: boolean;
   hiddenBridgesMode?: "remove" | "aggregate";
   aggregateBridgeLabel?: string;
@@ -331,6 +380,16 @@ const STR_DATA_CAP_DETAIL = {
   key: "Visual_DataCapDetail",
   fallback: "Showing the first 10,000 rows. Consider applying a filter or drilling down."
 };
+const STR_SCALE_OVERFLOW_HEADER = {
+  key: "Visual_ScaleOverflowHeader",
+  fallback: "Scale widened"
+};
+const STR_SCALE_OVERFLOW_DETAIL = {
+  key: "Visual_ScaleOverflowDetail",
+  fallback:
+    "A value lies outside Y axis → Scale max / Scale min, so the axis was widened to show it: this visual no longer shares that scale."
+};
+const STR_UNIT_NOTE = { key: "Visual_UnitNote", fallback: "in {0}" };
 const STR_ERR_COMPARISON_PILLARS = {
   key: "Visual_ErrComparisonPillars",
   fallback: "Comparison mode needs at least 2 pillars. Toggle them in the Format pane → Pillars (per category)."
@@ -739,6 +798,15 @@ export class Visual implements IVisual {
 
   private get legendSplitsBridges(): boolean {
     return this.formattingSettings.legend.layout.value?.value === "subBridges";
+  }
+
+  private get legendBridgeScope(): BridgeScope {
+    const lg = this.formattingSettings.legend;
+    return makeBridgeScope(lg.bridgeScope.value?.value, lg.bridgeList.value);
+  }
+
+  private get legendSplitAsText(): boolean {
+    return parseSplitStyle(this.formattingSettings.legend.splitStyle?.value?.value) === "text";
   }
 
   private attachSplitSegmentFx(
@@ -1913,6 +1981,10 @@ export class Visual implements IVisual {
             ? undefined
             : parseFillVariantOverride(pillarsObj.fillStyle),
         outlineOverride: readOutlineOverride(pillarsObj),
+        scenarioOverride:
+          pillarsObj?.scenarioOverride === undefined
+            ? undefined
+            : parseScenarioOverride(pillarsObj.scenarioOverride),
         showBridgesBefore:
           pillarsObj?.showBridgesBefore === undefined
             ? undefined
@@ -2157,6 +2229,10 @@ export class Visual implements IVisual {
           ? undefined
           : parseFillVariantOverride(pillarsRow.fillStyle);
       const outlineOverrideRow = readOutlineOverride(pillarsRow);
+      const scenarioOverrideRow =
+        pillarsRow.scenarioOverride === undefined
+          ? undefined
+          : parseScenarioOverride(pillarsRow.scenarioOverride);
       const fxColors = this.resolveCategoryFx(rowIdxs, fxCtx);
       const pillarColorOverride = fxColors.pillarColor;
       const pillarLabelColorOverride = fxColors.pillarLabelColor;
@@ -2239,6 +2315,7 @@ export class Visual implements IVisual {
         isPillar,
         fillStyleOverride,
         outlineOverride: outlineOverrideRow,
+        scenarioOverride: scenarioOverrideRow,
         pillarColor: resolvedPillarColor,
         pillarLabelColor: pillarLabelColorOverride,
         pillarLabelBgColor: pillarLabelBgColorOverride,
@@ -2527,6 +2604,10 @@ export class Visual implements IVisual {
           ? undefined
           : parseFillVariantOverride(pillarsObjForColor.fillStyle);
       const outlineOverrideNoCat = readOutlineOverride(pillarsObjForColor);
+      const scenarioOverrideNoCat =
+        pillarsObjForColor?.scenarioOverride === undefined
+          ? undefined
+          : parseScenarioOverride(pillarsObjForColor.scenarioOverride);
       const arcObjNoCat = colObjectsForColor?.variationArc as
         | Record<string, unknown>
         | undefined;
@@ -2577,6 +2658,7 @@ export class Visual implements IVisual {
         format: m.format,
         fillStyleOverride: fillStyleOverrideNoCat,
         outlineOverride: outlineOverrideNoCat,
+        scenarioOverride: scenarioOverrideNoCat,
         pillarColor: measureFill || defaultPillarColor,
         pillarLabelColor: measureLabelColorPerRow,
         pillarLabelBgColor: measureLabelBgPerRow,
@@ -2769,6 +2851,7 @@ export class Visual implements IVisual {
           pillarLabelBgColor: m.measureLabelBgColor,
           fillStyleOverride: m.fillStyleOverride,
           outlineOverride: m.outlineOverride,
+          scenarioOverride: m.scenarioOverride,
           selectionId: null,
           showArc: m.showArc,
           arrowEnds: m.arrowEnds,
@@ -3103,9 +3186,10 @@ export class Visual implements IVisual {
     const items: LayoutItem[] = [];
     let maxVisual = -Infinity;
     let minVisual = Infinity;
-    const splitOn = this.legendSplitsBridges;
+    const splitOn = this.legendSplitsBridges && !this.legendSplitAsText;
+    const splitScope = this.legendBridgeScope;
     const reserveSplit = (d: DataPoint, runningBefore: number): void => {
-      if (!splitOn) return;
+      if (!splitOn || !bridgeInScope(d.label, splitScope)) return;
       const split = planSplitSegments(d.segments);
       if (!split) return;
       const ext = splitExtent(runningBefore, split);
@@ -3248,13 +3332,16 @@ export class Visual implements IVisual {
     const vertical =
       String(s.general.orientation.value?.value || "horizontal") === "vertical";
 
-    const xAxisFont = readFontConfig(s.xAxis.font, 14);
-    const yAxisFont = readFontConfig(s.yAxis.font, 14);
-    const pillarFont = readFontConfig(s.pillars.font, 14);
-    const bridgeFont = readFontConfig(s.bridges.font, 14);
-    const railFont = readFontConfig(s.rails.font, 12);
-    const xTitleFont = readFontConfig(s.xAxis.titleFont, 14);
-    const yTitleFont = readFontConfig(s.yAxis.titleFont, 14);
+    const textScalePct = clamp(Number(s.general.textScale.value) || 100, 25, 400);
+    const readFont = (f: Parameters<typeof readFontConfig>[0], defaultSize: number): FontConfig =>
+      scaleFont(readFontConfig(f, defaultSize), textScalePct);
+    const xAxisFont = readFont(s.xAxis.font, 14);
+    const yAxisFont = readFont(s.yAxis.font, 14);
+    const pillarFont = readFont(s.pillars.font, 14);
+    const bridgeFont = readFont(s.bridges.font, 14);
+    const railFont = readFont(s.rails.font, 12);
+    const xTitleFont = readFont(s.xAxis.titleFont, 14);
+    const yTitleFont = readFont(s.yAxis.titleFont, 14);
     const showXAxis = !!s.xAxis.show.value;
     const showYAxis = !!s.yAxis.show.value;
     const showXTitle = !!s.xAxis.showTitle.value;
@@ -3274,7 +3361,7 @@ export class Visual implements IVisual {
     const pillarBgShow = !!s.pillars.labelBgShow.value;
     const pillarBgColor = safeHexOrEmpty(s.pillars.labelBgColor.value.value);
     const pillarBgTransparency = Number(s.pillars.labelBgTransparency.value) || 0;
-    const gtLabelFont = readFontConfig(s.grandTotal.font, 14);
+    const gtLabelFont = readFont(s.grandTotal.font, 14);
     const gtLabelColor = safeHex(s.grandTotal.grandTotalLabelColor.value.value, "#000000");
     const gtBgShow = !!s.grandTotal.labelBgShow.value;
     const gtBgColor = safeHexOrEmpty(s.grandTotal.labelBgColor.value.value);
@@ -3295,6 +3382,46 @@ export class Visual implements IVisual {
     const bridgeDecimals = clamp(Number(s.bridges.decimalPlaces.value) || 0, 0, 6);
     const pillarCustomFormat = readCustomFormat(s.pillars.customFormat.value);
     const bridgeCustomFormat = readCustomFormat(s.bridges.customFormat.value);
+    const pillarDivisor = labelScaleDivisor(
+      pillarUnitsRaw,
+      !!pickFormat(pillarCustomFormat, this.cachedActualFormat),
+      dataMaxAbs
+    );
+    const bridgeDivisor = labelScaleDivisor(
+      bridgeUnitsRaw,
+      !!pickFormat(bridgeCustomFormat, this.cachedActualFormat),
+      dataMaxAbs
+    );
+    const uniformDec = s.general.uniformDecimals.value
+      ? Math.max(
+          uniformScaleDecimals(
+            items.filter((it) => it.type === "pillar").map((it) => it.actualVal),
+            pillarDivisor
+          ),
+          uniformScaleDecimals(
+            items.filter((it) => it.type !== "pillar").map((it) => it.actual),
+            bridgeDivisor
+          )
+        )
+      : undefined;
+    const unitNoteDivisor = s.general.unitSuffix.value === false ? pillarDivisor : 0;
+    const ibcsNum = {
+      uniformDecimals: uniformDec,
+      stripSuffixDivisor: unitNoteDivisor > 0 ? unitNoteDivisor : undefined
+    };
+    const unitNoteText =
+      unitNoteDivisor > 0
+        ? this.localize(STR_UNIT_NOTE).replace(
+            "{0}",
+            unitNoteDivisor === 1e9 ? "bn" : unitNoteDivisor === 1e6 ? "M" : "K"
+          )
+        : "";
+    const unitNoteFont = { ...yAxisFont, bold: false, italic: false, underline: false };
+    const unitNoteH = unitNoteText ? Math.round(unitNoteFont.size * 1.2) + 4 : 0;
+    const axisScale =
+      unitNoteDivisor > 0 && displayScale.scale === unitNoteDivisor
+        ? { scale: displayScale.scale, suffix: "" }
+        : displayScale;
 
     const axisIsPercent = formatIsPercent(this.cachedActualFormat);
     const yTickText = (v: number, tickDecimals: number): string =>
@@ -3308,7 +3435,7 @@ export class Visual implements IVisual {
             locale: this.locale,
             dataMaxAbs: Math.abs(v) || 1
           })
-        : formatWithScale(v, displayScale, tickDecimals, this.locale);
+        : formatWithScale(v, axisScale, tickDecimals, this.locale);
 
     const probeTicks: number[] = [];
     {
@@ -3334,9 +3461,9 @@ export class Visual implements IVisual {
       legendPositionRaw === "Top" || legendPositionRaw === "TopCenter";
     const legendIsBottom =
       legendPositionRaw === "Bottom" || legendPositionRaw === "BottomCenter";
-    const legendFont = readFontConfig(s.legend.font, 11);
-    const legendTitleFont = readFontConfig(s.legend.titleFont, 12);
-    const segmentLabelFont = readFontConfig(s.legend.segmentLabelFont, 10);
+    const legendFont = readFont(s.legend.font, 11);
+    const legendTitleFont = readFont(s.legend.titleFont, 12);
+    const segmentLabelFont = readFont(s.legend.segmentLabelFont, 10);
     const legendShowTitle = !!s.legend.showTitle.value;
     const legendTitleText =
       String(s.legend.titleText.value || "").trim() || this.cachedLegendDisplayName;
@@ -3421,13 +3548,9 @@ export class Visual implements IVisual {
     const variationShow = !!s.variationArc.show.value;
     const pillarItemsForArc = items.filter((it) => it.type === "pillar");
     const variationArcsCount = Math.max(0, pillarItemsForArc.length - 1);
-    const variationFont = readFontConfig(s.variationArc.font, 12);
+    const variationFont = readFont(s.variationArc.font, 12);
     const variationArcDrop = 30;
     const variationArcLabelGap = 12;
-    const variationArcBaseBlockH =
-      variationShow && variationArcsCount > 0
-        ? variationFont.size + variationArcLabelGap + variationArcDrop + 6
-        : 0;
 
     const defaultSourceRaw = String(s.variationArc.defaultSource.value?.value || "auto-both");
     const arcUnitsRaw = String(s.variationArc.displayUnits.value?.value || "auto");
@@ -3485,23 +3608,79 @@ export class Visual implements IVisual {
         dataMaxAbs: Math.abs(v) || 1
       });
     };
-    const buildArcLabel = (itemK: LayoutItem, itemK1: LayoutItem, arcOrdinal: number): string => {
+    const buildArcParts = (itemK: LayoutItem, itemK1: LayoutItem, arcOrdinal: number): ArcLabelParts => {
       const resolved = defaultSourceRaw;
       if (resolved === "measure") {
         const fromMeasure = formatArcMeasure(itemK1, arcOrdinal);
-        if (fromMeasure !== null) return fromMeasure;
+        if (fromMeasure !== null) return { text: fromMeasure };
       }
       if (resolved === "auto-abs") {
-        return formatAbsDelta(itemK, itemK1);
-      }
-      if (resolved === "auto-both") {
-        return `${formatAbsDelta(itemK, itemK1)} | ${formatPctDelta(itemK, itemK1)}`;
+        return { value: formatAbsDelta(itemK, itemK1) };
       }
       if (resolved === "auto-pct") {
-        return formatPctDelta(itemK, itemK1);
+        return { pct: formatPctDelta(itemK, itemK1) };
       }
-      return `${formatAbsDelta(itemK, itemK1)} | ${formatPctDelta(itemK, itemK1)}`;
+      return { value: formatAbsDelta(itemK, itemK1), pct: formatPctDelta(itemK, itemK1) };
     };
+    const va = s.variationArc;
+    const scaledSize = (raw: unknown): number => {
+      const n = clamp(Number(raw) || 0, 0, 60);
+      return n > 0 ? scaleFont({ ...variationFont, size: n }, textScalePct).size : variationFont.size;
+    };
+    const arcTextOpts: ArcTextOptions = {
+      layout: String(va.labelLayout.value?.value ?? "inline") === "stack" ? "stack" : "inline",
+      order: String(va.labelOrder.value?.value ?? "value") === "pct" ? "pct" : "value",
+      pctParens: !!va.pctParens.value,
+      prefix: String(va.labelPrefix.value ?? ""),
+      caption: String(va.caption.value ?? ""),
+      captionPosition: String(va.captionPosition.value?.value ?? "above") === "below" ? "below" : "above",
+      fontSize: variationFont.size,
+      pctFontSize: scaledSize(va.pctFontSize.value),
+      pctItalic: !!va.pctItalic.value,
+      captionFontSize: scaledSize(va.captionFontSize.value)
+    };
+    const arcBubbleOn = String(va.labelStyle.value?.value ?? "text") === "bubble";
+    const arcBubbleGeom: BubbleGeometryOptions = {
+      shape: readBubbleShape(va.bubbleShape.value?.value),
+      padX: clamp(Number(va.bubblePaddingX.value ?? 8), 0, 80),
+      padY: clamp(Number(va.bubblePaddingY.value ?? 5), 0, 80)
+    };
+    const arcAlong = clamp(Number(va.labelAlong.value ?? 50), 0, 100);
+    const alongArc = (a: number, b: number): number =>
+      arcAlong === 50 ? (a + b) / 2 : a + (b - a) * (arcAlong / 100);
+    const escapedLen = (t: string): number => this.escapeXml(t).length;
+    const arcPlans: ArcLine[][] = [];
+    if (variationShow && variationArcsCount > 0) {
+      for (let p = 0; p < pillarItemsForArc.length - 1; p++) {
+        arcPlans.push(
+          arcLabelLines(buildArcParts(pillarItemsForArc[p], pillarItemsForArc[p + 1], p), arcTextOpts)
+        );
+      }
+    }
+    const arcLegacy =
+      !arcBubbleOn &&
+      arcPlans.every((l) => l.length === 0 || isPlainArcLabel(l, variationFont.size));
+    const arcLabelBox = (lines: ArcLine[]): { w: number; h: number } => {
+      const textW = arcBlockWidth(lines, CHAR_W_RATIO, escapedLen);
+      const blockH = arcLegacy ? variationFont.size : arcBlockHeight(lines);
+      return arcBubbleOn ? bubbleSize(textW, blockH, arcBubbleGeom) : { w: textW, h: blockH };
+    };
+    const arcBoxesBySlot = arcPlans.map(arcLabelBox);
+    const arcMaxBoxH = arcBoxesBySlot.reduce((m, b) => Math.max(m, b.h), 0);
+    const arcBubbleLift = arcBubbleOn
+      ? Math.max(0, Math.ceil(arcMaxBoxH / 2) + bridgeFont.size + 10 - variationArcDrop)
+      : 0;
+    const arcBubbleShiftV = arcBubbleOn
+      ? Math.ceil(arcBoxesBySlot.reduce((m, b) => Math.max(m, b.w), 0) / 2)
+      : 0;
+    const arcAboveLine = arcLegacy
+      ? variationFont.size + variationArcLabelGap
+      : arcBubbleOn
+        ? arcMaxBoxH / 2 + 2
+        : variationArcLabelGap + arcMaxBoxH - 2;
+    const arcRowStep = arcLegacy ? variationFont.size + 3 : arcMaxBoxH + 3;
+    const variationArcBaseBlockH =
+      variationShow && variationArcsCount > 0 ? arcAboveLine + variationArcDrop + arcBubbleLift + 6 : 0;
 
     let arcStaggerRows = 0;
     if (variationShow && variationArcsCount > 1 && !vertical) {
@@ -3515,19 +3694,15 @@ export class Visual implements IVisual {
       for (let p = 0; p < arcPillarIdxs.length - 1; p++) {
         const iK = arcPillarIdxs[p];
         const iK1 = arcPillarIdxs[p + 1];
-        const centre = ((iK + 0.5) + (iK1 + 0.5)) / 2 * provisionalStepX;
-        const w =
-          this.escapeXml(buildArcLabel(items[iK], items[iK1], p)).length *
-          variationFont.size *
-          CHAR_W_RATIO;
+        const centre = alongArc(iK + 0.5, iK1 + 0.5) * provisionalStepX;
+        const w = arcBoxesBySlot[p]?.w ?? 0;
         arcBoxes.push({ x0: centre - w / 2, x1: centre + w / 2 });
       }
       arcStaggerRows = stackedRowsNeeded(arcBoxes);
     }
-    const variationArcBlockH =
-      variationArcBaseBlockH + arcStaggerRows * (variationFont.size + 3);
+    const variationArcBlockH = variationArcBaseBlockH + arcStaggerRows * arcRowStep;
 
-    let padTop = 30 + railBlockTopH + legendPadTop + variationArcBlockH;
+    let padTop = 30 + railBlockTopH + legendPadTop + variationArcBlockH + unitNoteH;
 
     let chartW = width - padLeft - padRight;
     let stepX = chartW / Math.max(1, items.length);
@@ -3607,7 +3782,11 @@ export class Visual implements IVisual {
         ? (tableHeaderLines - 1) * tableRowLabelSize * TABLE_HEADER_LINE_HEIGHT
         : 0;
       padTop =
-        legendPadTop + yTitleSpace + (vTopTextSize > 0 ? vTopTextSize + 18 : 20) + vHeaderExtra;
+        legendPadTop +
+        yTitleSpace +
+        (vTopTextSize > 0 ? vTopTextSize + 18 : 20) +
+        vHeaderExtra +
+        unitNoteH;
       padBottom = 20 + legendPadBottom;
       chartH = Math.max(10, height - padTop - padBottom);
       stepX = chartH / Math.max(1, items.length);
@@ -3684,17 +3863,23 @@ export class Visual implements IVisual {
       vTableX0 = legendPadLeft;
 
       if (variationShow && variationArcsCount > 0) {
-        let maxArcChars = 0;
-        for (let p = 0; p < pillarItemsForArc.length - 1; p++) {
-          const txt = buildArcLabel(pillarItemsForArc[p], pillarItemsForArc[p + 1], p);
-          maxArcChars = Math.max(maxArcChars, txt.length);
+        if (arcLegacy) {
+          let maxArcChars = 0;
+          for (const plan of arcPlans) maxArcChars = Math.max(maxArcChars, arcLabelText(plan).length);
+          vArcBlockW =
+            variationArcDrop +
+            variationArcLabelGap +
+            Math.round(maxArcChars * variationFont.size * CHAR_W_RATIO) +
+            6 +
+            24;
+        } else {
+          const maxW = arcBoxesBySlot.reduce((m, b) => Math.max(m, b.w), 0);
+          vArcBlockW =
+            variationArcDrop +
+            (arcBubbleOn ? Math.round(maxW / 2) + arcBubbleShiftV : variationArcLabelGap + Math.round(maxW)) +
+            6 +
+            24;
         }
-        vArcBlockW =
-          variationArcDrop +
-          variationArcLabelGap +
-          Math.round(maxArcChars * variationFont.size * CHAR_W_RATIO) +
-          6 +
-          24;
       }
       padRight = 30 + vArcBlockW + railBlockH + legendPadRight;
       const padLeftNeed =
@@ -3717,7 +3902,24 @@ export class Visual implements IVisual {
       yMinOffsetPct,
       userMode
     });
-    const { yMin, yMax, allPillarsPositive, allPillarsNegative } = yRangeResult;
+    const { allPillarsPositive, allPillarsNegative } = yRangeResult;
+    const fixedScale = applyFixedScale(
+      { yMin: yRangeResult.yMin, yMax: yRangeResult.yMax },
+      { min: Math.min(minRunning, minVisual), max: maxVisual },
+      {
+        min: Math.min(0, Number(s.yAxis.scaleMin.value) || 0),
+        max: Math.max(0, Number(s.yAxis.scaleMax.value) || 0)
+      }
+    );
+    const { yMin, yMax } = fixedScale;
+    const fixedScaleOn =
+      (Number(s.yAxis.scaleMax.value) || 0) > 0 || (Number(s.yAxis.scaleMin.value) || 0) < 0;
+    if (fixedScale.overflow) {
+      this.host.displayWarningIcon?.(
+        this.localize(STR_SCALE_OVERFLOW_HEADER),
+        this.localize(STR_SCALE_OVERFLOW_DETAIL)
+      );
+    }
 
     const yRange = yMax - yMin;
     const barW = Math.max(1, Math.min(Number(s.layout.barWidth.value) || 55, stepX * 0.75));
@@ -3751,6 +3953,11 @@ export class Visual implements IVisual {
       ? this.hcForeground
       : (userGlobalPillarColor || themedPillarDefault);
     const pillarFillGlobal = parseFillVariant(s.pillars.pillarFillStyle.value?.value);
+    const pillarScenarioGlobal = parseScenario(s.pillars.scenario.value?.value);
+    const scenarioColors = {
+      dark: safeHex(s.pillars.scenarioColor.value.value, "#404040"),
+      previous: safeHex(s.pillars.scenarioColorPrevious.value.value, "#a6a6a6")
+    };
     const pillarOutlineShow = !!s.pillars.outlineShow.value;
     const pillarOutlineColor = this.isHighContrast
       ? this.hcForeground
@@ -3768,6 +3975,25 @@ export class Visual implements IVisual {
       dashed: pillarOutlineDashed
     };
     const colorBridge = this.isHighContrast ? this.hcForeground : userColorBridge;
+    const bridgeImpactMode = String(s.bridges.colorMode.value?.value) === "impact";
+    const impactPolarity = parseImpactPolarity(s.bridges.impactPolarity.value?.value);
+    const impactNeutral = Math.max(0, Number(s.bridges.neutralThreshold.value) || 0);
+    const impactInverted = makeBridgeScope("list", s.bridges.invertedList.value);
+    const impactPalette = {
+      good: safeHex(s.bridges.colorGood.value.value, "#8cb400"),
+      bad: safeHex(s.bridges.colorBad.value.value, "#ff0000"),
+      neutral: safeHex(s.bridges.colorNeutral.value.value, "#a6a6a6")
+    };
+    const impactColorFor = (delta: number, categoryLabel: string): string | null =>
+      bridgeImpactMode
+        ? impactPalette[
+            impactOf(delta, {
+              polarity: impactPolarity,
+              inverted: bridgeInScope(categoryLabel, impactInverted),
+              neutral: impactNeutral
+            })
+          ]
+        : null;
     const colorBridgeLabel = this.isHighContrast
       ? this.hcForeground
       : userColorBridgeLabel;
@@ -3795,6 +4021,9 @@ export class Visual implements IVisual {
     svg += `<title>Waterfall chart</title>`;
     svg += `<desc>${this.escapeXml(generatedDesc)}</desc>`;
     svg += `<style>.wf-clickable{cursor:pointer}</style>`;
+    if (unitNoteText) {
+      svg += `<text class="wf-unit-note" x="4" y="${(legendPadTop + unitNoteFont.size + 1).toFixed(1)}" text-anchor="start"${fontAttrs(unitNoteFont, colorYAxis)}>${this.escapeXml(unitNoteText)}</text>`;
+    }
 
     const truncateToWidth = (text: string, maxWidth: number, fontSize: number): string => {
       const charWidth = fontSize * CHAR_W_RATIO;
@@ -4048,10 +4277,14 @@ export class Visual implements IVisual {
     const gridStroke = this.isHighContrast ? this.hcForeground : "#d4d4d4";
     if (showYAxis) {
       const tickValues: number[] = [];
-      for (let t = 0; t <= 5; t++) tickValues.push(yMin + (yRange * t) / 5);
+      if (fixedScaleOn) {
+        tickValues.push(...niceTicks(yMin, yMax, 5));
+      } else {
+        for (let t = 0; t <= 5; t++) tickValues.push(yMin + (yRange * t) / 5);
+      }
       const tickDecimals =
         decimals > 0 ? decimals : distinctTickDecimals(tickValues, displayScale, this.locale);
-      for (let t = 0; t <= 5; t++) {
+      for (let t = 0; t < tickValues.length; t++) {
         const v = tickValues[t];
         const py = yScale(v);
         if (vertical) {
@@ -4117,8 +4350,11 @@ export class Visual implements IVisual {
       bgColor: string;
       barFill?: string;
       lines?: string[];
+      onBox?: (b: { x0: number; x1: number; y0: number; y1: number }) => void;
+      forceTip?: boolean;
     }): string => {
       const size = bridgeFont.size;
+      const centered = bridgeLabelCentered && !o.forceTip;
       const lineCount = o.lines && o.lines.length > 1 ? o.lines.length : 1;
       const lineH = size + 2;
       const blockExtra = (lineCount - 1) * lineH;
@@ -4130,7 +4366,7 @@ export class Visual implements IVisual {
       let inside = false;
       if (vertical) {
         ly = o.catC + size * 0.35 - blockExtra / 2;
-        if (bridgeLabelCentered) {
+        if (centered) {
           lx = (o.spanLo + o.spanHi) / 2;
         } else {
           const tip = o.isUp ? o.spanHi : o.spanLo;
@@ -4143,7 +4379,7 @@ export class Visual implements IVisual {
       } else {
         let naturalY: number;
         let escapeUp: boolean;
-        if (bridgeLabelCentered) {
+        if (centered) {
           naturalY = (o.spanLo + o.spanHi) / 2 + size * 0.35;
           escapeUp = o.isUp;
         } else if (o.isUp) {
@@ -4166,7 +4402,7 @@ export class Visual implements IVisual {
           escapeUp = !useBelow;
         }
         if (blockExtra > 0) {
-          if (bridgeLabelCentered) naturalY -= blockExtra / 2;
+          if (centered) naturalY -= blockExtra / 2;
           else if (escapeUp) naturalY -= blockExtra;
         }
         lx = o.catC;
@@ -4190,6 +4426,10 @@ export class Visual implements IVisual {
         lineCount > 1
           ? o.lines!.map((l, i) => `<tspan x="${lx.toFixed(1)}" dy="${i === 0 ? 0 : lineH}">${l}</tspan>`).join("")
           : o.text;
+      if (o.onBox) {
+        const x0 = anchor === "start" ? lx : anchor === "end" ? lx - estW : lx - estW / 2;
+        o.onBox({ x0, x1: x0 + estW, y0: ly - size * 0.78, y1: ly + blockExtra + size * 0.22 });
+      }
       return (
         svgLabelBg({
           cx: lx,
@@ -4296,6 +4536,17 @@ export class Visual implements IVisual {
     const legendOnPillars = legendApplyRaw !== "bridges";
     const legendOnBridges = legendApplyRaw !== "pillars";
     const legendOnGrandTotal = !!s.legend.applyToGrandTotal.value;
+    const legendBridgeScope = this.legendBridgeScope;
+    const splitLabelOpts = {
+      showName: s.legend.splitShowPartName?.value !== false,
+      showValue: s.legend.splitShowPartValue?.value !== false,
+      showRemainder: s.legend.splitShowRemainderLabel?.value !== false
+    };
+    const splitShowTotal = !!s.legend.splitShowTotal?.value;
+    const splitAsText = this.legendSplitAsText;
+    const splitTextBarColors = s.legend.splitTextBarColors?.value !== false;
+    const splitTextSliceGap = Math.max(0, Math.min(8, Number(s.legend.splitTextSliceGap?.value ?? 2) || 0));
+    const splitTextSliceLabels = !!s.legend.splitTextSliceLabels?.value;
     // eslint-disable-next-line max-lines-per-function
     items.forEach((item, i) => {
       const catC = (vertical ? padTop : padLeft) + (i + 0.5) * stepX;
@@ -4325,9 +4576,17 @@ export class Visual implements IVisual {
         const perCatPillarColor = isSynth
           ? item.pillarColor
           : cat?.pillarColor;
+        const scenario = cat?.isGrandTotal
+          ? null
+          : scenarioPaint(
+              resolveScenario(pillarScenarioGlobal, cat?.scenarioOverride),
+              scenarioColors
+            );
         const pillarColor = this.isHighContrast
           ? this.hcForeground
-          : (perCatPillarColor || defaultPillarColor);
+          : scenario
+            ? scenario.color
+            : (perCatPillarColor || defaultPillarColor);
         const pillarSegEnabled = legendSplit
           ? false
           : cat?.isGrandTotal
@@ -4407,7 +4666,9 @@ export class Visual implements IVisual {
         } else {
           const effPillarFill: BarFillVariant = cat?.isGrandTotal
             ? "solid"
-            : resolveFillVariant(pillarFillGlobal, cat?.fillStyleOverride);
+            : scenario
+              ? scenario.variant
+              : resolveFillVariant(pillarFillGlobal, cat?.fillStyleOverride);
           const eff = resolvePillarOutline(pillarOutlineGlobal, cat?.outlineOverride);
           const effOutlineColor = this.isHighContrast ? this.hcForeground : eff.color;
           const outlineActive =
@@ -4452,6 +4713,11 @@ export class Visual implements IVisual {
               ? gtBgColor
               : (perRowPillarLabelBgColor || pillarBgColor);
           const labelFill = resolvedPillarLabelColor;
+          const pillarPillDrawn = labelBgShow && !!resolvedPillarBgColor;
+          const scenarioInsideInk = (inside: boolean, preferred: string): string =>
+            inside && scenario && scenario.variant === "solid" && !pillarPillDrawn && !this.isHighContrast
+              ? contrastTextOn(pillarColor, preferred)
+              : preferred;
           const pillarLabelText = formatActualLabel({
             value: item.actualVal,
             modelFormat: pickFormat(
@@ -4463,6 +4729,7 @@ export class Visual implements IVisual {
             cardDecimals: pillarDecimals,
             autoDecimals: decimals,
             locale: this.locale,
+            ...ibcsNum,
             dataMaxAbs
           });
           const escapedPillarLabel = this.escapeXml(pillarLabelText);
@@ -4473,6 +4740,7 @@ export class Visual implements IVisual {
             const estW = escapedPillarLabel.length * labelFont.size * CHAR_W_RATIO;
             const pos = tipLabelX(positiveTip, tip, estW, padLeft, padLeft + chartW);
             const labelY = catC + labelFont.size * 0.35;
+            const labelFillV = scenarioInsideInk(pos.inside, labelFill);
             barLabelsBuf += svgLabelBg({
               cx: pos.x,
               y: labelY,
@@ -4483,7 +4751,7 @@ export class Visual implements IVisual {
               bgColor: resolvedPillarBgColor,
               bgTransparency: labelBgTransparency
             });
-            barLabelsBuf += `<text x="${pos.x.toFixed(1)}" y="${labelY.toFixed(1)}" text-anchor="${pos.anchor}"${fontAttrs(labelFont, labelFill)}>${escapedPillarLabel}</text>`;
+            barLabelsBuf += `<text x="${pos.x.toFixed(1)}" y="${labelY.toFixed(1)}" text-anchor="${pos.anchor}"${fontAttrs(labelFont, labelFillV)}>${escapedPillarLabel}</text>`;
           } else {
             const aboveY = yTop - 8;
             const fitsAbove = aboveY > padTop + labelFont.size + 2;
@@ -4509,7 +4777,7 @@ export class Visual implements IVisual {
               bgColor: resolvedPillarBgColor,
               bgTransparency: labelBgTransparency
             });
-            barLabelsBuf += `<text x="${cx.toFixed(1)}" y="${labelY.toFixed(1)}" text-anchor="middle"${fontAttrs(labelFont, labelFill)}>${escapedPillarLabel}</text>`;
+            barLabelsBuf += `<text x="${cx.toFixed(1)}" y="${labelY.toFixed(1)}" text-anchor="middle"${fontAttrs(labelFont, scenarioInsideInk(!fitsAbove, labelFill))}>${escapedPillarLabel}</text>`;
           }
           barLabelsBuf += `</g>`;
         }
@@ -4517,20 +4785,24 @@ export class Visual implements IVisual {
         const cat = this.cachedCategoryDisplay[item.categoryIndex];
         const perRowBridgeColor = cat?.bridgeColor;
         const perRowLabelColor = cat?.bridgeLabelColor;
+        const impactColor = impactColorFor(item.actualVal, item.label);
         const color = this.isHighContrast
           ? this.hcForeground
-          : (perRowBridgeColor || colorBridge);
+          : impactColor || (perRowBridgeColor || colorBridge);
         const labelColor = this.isHighContrast
           ? this.hcForeground
-          : (perRowLabelColor || colorBridgeLabel);
+          : impactColor || (perRowLabelColor || colorBridgeLabel);
         const perRowLabelBgColor = cat?.bridgeLabelBgColor;
         const labelBgColor = this.isHighContrast
           ? this.hcBackground
           : (perRowLabelBgColor || colorBridgeLabelBg);
         const yTop = yTopBar;
         const yBot = yBotBar;
-        const split = legendSplit ? planSplitSegments(cat?.segments) : undefined;
-        const segs = !legendSplit && legendOnBridges ? cat?.segments : undefined;
+        const bridgeListed = bridgeInScope(item.label, legendBridgeScope);
+        const splitPlan = legendSplit && bridgeListed ? planSplitSegments(cat?.segments) : undefined;
+        const split = splitAsText ? undefined : splitPlan;
+        const detailParts = splitAsText ? splitPlan : undefined;
+        const segs = !legendSplit && legendOnBridges && bridgeListed ? cat?.segments : undefined;
         if (split) {
           const steps = splitSteps(item.runningBefore, split);
           const slots = splitSlots(catLo, barW, split.length);
@@ -4540,14 +4812,16 @@ export class Visual implements IVisual {
           ringSpanLo = Math.min(extA, extB);
           ringSpanHi = Math.max(extA, extB);
           let splitLabels = "";
+          const partBoxes: Array<{ x0: number; x1: number; y0: number; y1: number }> = [];
           split.forEach((seg, k) => {
             const st = steps[k];
             const slot = slots[k];
             const pLo = yScaleClamped(st.lo);
             const pHi = yScaleClamped(st.hi);
+            const segImpact = impactColorFor(seg.value, item.label);
             const segColor = this.isHighContrast
               ? this.hcForeground
-              : (seg.bridgeColor || colorBridge);
+              : segImpact || (seg.bridgeColor || colorBridge);
             svg += vertical
               ? `<rect x="${pLo.toFixed(1)}" y="${slot.lo.toFixed(1)}" width="${(pHi - pLo).toFixed(1)}" height="${slot.w.toFixed(1)}" fill="${escapeXmlAttr(segColor)}" rx="2"/>`
               : `<rect x="${slot.lo.toFixed(1)}" y="${pHi.toFixed(1)}" width="${slot.w.toFixed(1)}" height="${(pLo - pHi).toFixed(1)}" fill="${escapeXmlAttr(segColor)}" rx="2"/>`;
@@ -4559,28 +4833,88 @@ export class Visual implements IVisual {
               cardDecimals: bridgeDecimals,
               autoDecimals: decimals,
               locale: this.locale,
+              ...ibcsNum,
               dataMaxAbs,
               withSign: true
             });
-            const partName = (seg.label || "").trim();
+            const parts = splitPartLabelParts(seg.label, valText, splitLabelOpts);
+            if (parts.length === 0) return;
             const wrapLines =
-              splitLabelWrap && partName ? [this.escapeXml(partName), this.escapeXml(valText)] : undefined;
+              splitLabelWrap && parts.length === 2 ? parts.map((p) => this.escapeXml(p)) : undefined;
             splitLabels += bridgeLabelSvg({
-              text: this.escapeXml(splitLabelText(seg.label, valText)),
+              text: this.escapeXml(parts.join(" ")),
               lines: wrapLines,
+              onBox: (b) => partBoxes.push(b),
               isUp: seg.value > 0,
               catC: slot.lo + slot.w / 2,
               spanLo: vertical ? pLo : pHi,
               spanHi: vertical ? pHi : pLo,
               color: this.isHighContrast
                 ? this.hcForeground
-                : (seg.bridgeLabelColor || colorBridgeLabel),
+                : segImpact || (seg.bridgeLabelColor || colorBridgeLabel),
               bgColor: this.isHighContrast
                 ? this.hcBackground
                 : (seg.bridgeLabelBgColor || colorBridgeLabelBg),
               barFill: segColor
             });
           });
+          if (showBridgeLabels && splitShowTotal) {
+            const totText = this.escapeXml(
+              formatActualLabel({
+                value: item.actual,
+                modelFormat: pickFormat(bridgeCustomFormat, item.format, this.cachedActualFormat),
+                cardUnits: bridgeUnitsRaw,
+                cardDecimals: bridgeDecimals,
+                autoDecimals: decimals,
+                locale: this.locale,
+                ...ibcsNum,
+                dataMaxAbs,
+                withSign: true
+              })
+            );
+            const size = bridgeFont.size;
+            const totW = totText.length * size * CHAR_W_RATIO;
+            let occLo = ringSpanLo;
+            let occHi = ringSpanHi;
+            for (const b of partBoxes) {
+              occLo = Math.min(occLo, vertical ? b.x0 : b.y0);
+              occHi = Math.max(occHi, vertical ? b.x1 : b.y1);
+            }
+            const netUp = item.type === "up";
+            const span = splitTotalSpan({
+              occupied: { lo: occLo, hi: occHi },
+              extent: vertical ? totW : size,
+              towardHigh: vertical ? netUp : !netUp,
+              frameLo: vertical ? padLeft : padTop,
+              frameHi: vertical ? padLeft + chartW : height - padBottom,
+              gap: vertical ? 8 : 6
+            });
+            let tx: number;
+            let ty: number;
+            let tAnchor: "start" | "end" | "middle";
+            if (vertical) {
+              tAnchor = span.towardHigh ? "start" : "end";
+              tx = span.towardHigh ? span.lo : span.hi;
+              ty = catC + size * 0.35;
+            } else {
+              tAnchor = "middle";
+              tx = catC;
+              ty = span.lo + size * 0.78;
+              placedBarLabels.push({ x0: catC - totW / 2, x1: catC + totW / 2, y: ty });
+            }
+            splitLabels +=
+              svgLabelBg({
+                cx: tx,
+                y: ty,
+                textLen: totText.length,
+                textAnchor: tAnchor,
+                fontSize: size,
+                bgShow: bridgeBgShow,
+                bgColor: labelBgColor,
+                bgTransparency: bridgeBgTransparency
+              }) +
+              `<text class="wf-split-total" x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" text-anchor="${tAnchor}"${fontAttrs({ ...bridgeFont, bold: true }, labelColor)}>${totText}</text>`;
+          }
           if (splitLabels) {
             barLabelsBuf +=
               `<g data-cat-idx="${item.categoryIndex}" class="wf-clickable">` +
@@ -4606,6 +4940,52 @@ export class Visual implements IVisual {
               stack.labels +
               `</g>`;
           }
+        } else if (detailParts && splitTextBarColors) {
+          const slices = splitBarSlices(item.runningBefore, detailParts);
+          const spans = gapSliceSpans(
+            slices.map((sl) => ({ a: yScaleClamped(sl.from), b: yScaleClamped(sl.to) })),
+            splitTextSliceGap
+          );
+          const sFont = { ...bridgeFont, size: splitDetailFontSize(bridgeFont.size), bold: false };
+          let sliceLabels = "";
+          slices.forEach((sl, k) => {
+            const pA = spans[k].a;
+            const pB = spans[k].b;
+            const sliceColor = this.isHighContrast
+              ? this.hcForeground
+              : impactColorFor(sl.seg.value, item.label) || (sl.seg.bridgeColor || colorBridge);
+            svg += vertical
+              ? `<rect class="wf-split-slice" x="${Math.min(pA, pB).toFixed(1)}" y="${catLo.toFixed(1)}" width="${Math.abs(pB - pA).toFixed(1)}" height="${barW.toFixed(1)}" fill="${escapeXmlAttr(sliceColor)}"/>`
+              : `<rect class="wf-split-slice" x="${x.toFixed(1)}" y="${Math.min(pA, pB).toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.abs(pB - pA).toFixed(1)}" fill="${escapeXmlAttr(sliceColor)}"/>`;
+            if (!splitTextSliceLabels || !showBridgeLabels) return;
+            const valText = formatActualLabel({
+              value: sl.seg.value,
+              modelFormat: pickFormat(bridgeCustomFormat, item.format, this.cachedActualFormat),
+              cardUnits: bridgeUnitsRaw,
+              cardDecimals: bridgeDecimals,
+              autoDecimals: decimals,
+              locale: this.locale,
+              ...ibcsNum,
+              dataMaxAbs,
+              withSign: true
+            });
+            const fits = sliceLabelFits({
+              vertical,
+              sliceLen: Math.abs(pB - pA),
+              thickness: barW,
+              textWidth: valText.length * sFont.size * CHAR_W_RATIO,
+              size: sFont.size
+            });
+            if (!fits) return;
+            const tColor = this.isHighContrast ? this.hcBackground : contrastTextOn(sliceColor, labelColor);
+            const mid = (pA + pB) / 2;
+            const tx = vertical ? mid : cx;
+            const ty = (vertical ? catC : mid) + sFont.size * 0.35;
+            sliceLabels += `<text class="wf-split-slice-label" x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" text-anchor="middle"${fontAttrs(sFont, tColor)}>${this.escapeXml(valText)}</text>`;
+          });
+          if (sliceLabels) {
+            barLabelsBuf += `<g data-cat-idx="${item.categoryIndex}" class="wf-clickable">${sliceLabels}</g>`;
+          }
         } else if (vertical) {
           svg += `<rect x="${xLeftBar.toFixed(1)}" y="${catLo.toFixed(1)}" width="${(xRightBar - xLeftBar).toFixed(1)}" height="${barW.toFixed(1)}" fill="${escapeXmlAttr(color)}" rx="2"/>`;
         } else {
@@ -4623,10 +5003,12 @@ export class Visual implements IVisual {
             cardDecimals: bridgeDecimals,
             autoDecimals: decimals,
             locale: this.locale,
+            ...ibcsNum,
             dataMaxAbs,
             withSign: true
           });
           barLabelsBuf += `<g data-cat-idx="${item.categoryIndex}" class="wf-clickable">`;
+          let labelBox: { x0: number; x1: number; y0: number; y1: number } | undefined;
           barLabelsBuf += bridgeLabelSvg({
             text: this.escapeXml(valText),
             isUp: item.type === "up",
@@ -4635,8 +5017,56 @@ export class Visual implements IVisual {
             spanHi: vertical ? xRightBar : yBot,
             color: labelColor,
             bgColor: labelBgColor,
-            barFill: color
+            barFill: color,
+            onBox: detailParts ? (b) => { labelBox = b; } : undefined,
+            forceTip: !!detailParts && splitTextBarColors
           });
+          if (detailParts) {
+            const lines = splitDetailLines(
+              detailParts,
+              (v) =>
+                formatActualLabel({
+                  value: v,
+                  modelFormat: pickFormat(bridgeCustomFormat, item.format, this.cachedActualFormat),
+                  cardUnits: bridgeUnitsRaw,
+                  cardDecimals: bridgeDecimals,
+                  autoDecimals: decimals,
+                  locale: this.locale,
+                  ...ibcsNum,
+                  dataMaxAbs,
+                  withSign: true
+                }),
+              splitLabelOpts
+            );
+            if (lines.length > 0) {
+              const dFont = { ...bridgeFont, size: splitDetailFontSize(bridgeFont.size), bold: false };
+              let occLo = vertical ? xLeftBar : yTop;
+              let occHi = vertical ? xRightBar : yBot;
+              if (labelBox) {
+                occLo = Math.min(occLo, vertical ? labelBox.x0 : labelBox.y0);
+                occHi = Math.max(occHi, vertical ? labelBox.x1 : labelBox.y1);
+              }
+              const lay = splitDetailLayout({
+                vertical,
+                netUp: item.type === "up",
+                occupied: { lo: occLo, hi: occHi },
+                catC,
+                lineCount: lines.length,
+                size: dFont.size,
+                textWidth: Math.max(...lines.map((l) => l.length)) * dFont.size * CHAR_W_RATIO,
+                frameLo: vertical ? padLeft : padTop,
+                frameHi: vertical ? padLeft + chartW : height - padBottom,
+                gap: 6
+              });
+              const tspans = lines
+                .map((l, k) => `<tspan x="${lay.x.toFixed(1)}" y="${lay.baselines[k].toFixed(1)}">${this.escapeXml(l)}</tspan>`)
+                .join("");
+              barLabelsBuf += `<text class="wf-split-detail" text-anchor="${lay.anchor}"${fontAttrs(dFont, labelColor)}>${tspans}</text>`;
+              if (!vertical) {
+                for (const yb of lay.baselines) placedBarLabels.push({ x0: lay.box.x0, x1: lay.box.x1, y: yb });
+              }
+            }
+          }
           barLabelsBuf += `</g>`;
         }
       }
@@ -4670,6 +5100,27 @@ export class Visual implements IVisual {
         0,
         Math.min(100, Number(s.variationArc.labelBgTransparency.value) || 0)
       );
+      const arcBySign = !!va.labelColorBySign.value;
+      const arcPosText = safeHex(va.labelPosColor.value.value, "#2E9E68");
+      const arcNegText = safeHex(va.labelNegColor.value.value, "#C0392B");
+      const bubbleFillMode = String(va.bubbleFillMode.value?.value ?? "fixed");
+      const bubbleBorderMode = String(va.bubbleBorderMode.value?.value ?? "fixed");
+      const bubbleFixedFill = safeHex(va.bubbleFillColor.value.value, "#FFFFFF");
+      const bubblePosFill = safeHex(va.bubblePosFillColor.value.value, "#50BE87");
+      const bubbleNegFill = safeHex(va.bubbleNegFillColor.value.value, "#E5533D");
+      const bubbleFixedBorder = safeHexOrEmpty(va.bubbleBorderColor.value.value);
+      const bubblePosBorder = safeHex(va.bubblePosBorderColor.value.value, "#2E9E68");
+      const bubbleNegBorder = safeHex(va.bubbleNegBorderColor.value.value, "#C0392B");
+      const bubbleFillOpacity =
+        1 - clamp(Number(va.bubbleFillTransparency.value) || 0, 0, 100) / 100;
+      const bubbleBorderWidth = clamp(Number(va.bubbleBorderWidth.value ?? 1), 0, 8);
+      const bubbleDashRaw = String(va.bubbleBorderStyle.value?.value ?? "solid");
+      const bubbleDash: "solid" | "dash" | "dot" =
+        bubbleDashRaw === "dash" || bubbleDashRaw === "dot" ? bubbleDashRaw : "solid";
+      const bubbleCorner = clamp(Number(va.bubbleCornerRadius.value) || 0, 0, 60);
+      const bubbleShadow = arcBubbleOn && !!va.bubbleShadow.value;
+      const BUBBLE_SHADOW_ID = "wf-arc-shadow";
+      let bubbleShadowEmitted = false;
 
       const pillarIdxsInItems: number[] = [];
       items.forEach((it, idx) => {
@@ -4701,6 +5152,7 @@ export class Visual implements IVisual {
           cardDecimals: pillarDecimals,
           autoDecimals: decimals,
           locale: this.locale,
+          ...ibcsNum,
           dataMaxAbs
         });
         const escaped = this.escapeXml(labelText);
@@ -4723,17 +5175,82 @@ export class Visual implements IVisual {
         const arrowEndsRaw = String(arcDestCat?.arrowEnds ?? globalArrowEnds);
         const arrowAtStart = arrowEndsRaw !== "end";
         const arrowAtEnd = arrowEndsRaw !== "start";
+        const arcRising = itemK1.actualVal - itemK.actualVal >= 0;
         const arcLabelColor = this.isHighContrast
           ? this.hcForeground
-          : safeHex(
-              arcDestCat?.arcLabelColor || s.variationArc.labelColor.value.value,
-              "#000000"
-            );
+          : arcBySign
+            ? arcRising
+              ? arcPosText
+              : arcNegText
+            : safeHex(
+                arcDestCat?.arcLabelColor || s.variationArc.labelColor.value.value,
+                "#000000"
+              );
         const arcBgColor = this.isHighContrast
           ? this.hcBackground
           : safeHexOrEmpty(
               arcDestCat?.arcLabelBgColor || s.variationArc.labelBgColor.value.value
             );
+        const arcLines = arcPlans[p] ?? [];
+        const arcBox = arcBoxesBySlot[p] ?? { w: 0, h: 0 };
+        const arcBubbleSvg = (cx: number, cy: number): string => {
+          let out = "";
+          if (bubbleShadow && !bubbleShadowEmitted) {
+            out += bubbleShadowDefs(BUBBLE_SHADOW_ID);
+            bubbleShadowEmitted = true;
+          }
+          const fill = this.isHighContrast
+            ? this.hcBackground
+            : bubbleFillMode === "none"
+              ? "none"
+              : bubbleFillMode === "sign"
+                ? arcRising
+                  ? bubblePosFill
+                  : bubbleNegFill
+                : bubbleFixedFill;
+          const stroke = this.isHighContrast
+            ? this.hcForeground
+            : bubbleBorderMode === "none" || bubbleBorderWidth <= 0
+              ? "none"
+              : bubbleBorderMode === "sign"
+                ? arcRising
+                  ? bubblePosBorder
+                  : bubbleNegBorder
+                : bubbleFixedBorder || arcStroke;
+          return (
+            out +
+            bubbleShapeSvg(cx, cy, arcBox, arcBubbleGeom.shape, bubbleCorner, {
+              fill,
+              fillOpacity: bubbleFillOpacity,
+              stroke,
+              strokeWidth: bubbleBorderWidth,
+              dash: bubbleDash,
+              shadowId: bubbleShadow ? BUBBLE_SHADOW_ID : undefined
+            })
+          );
+        };
+        const arcTextAt = (x: number, centreY: number, anchor: "middle" | "start"): string =>
+          arcTextSvg(
+            x,
+            centreY,
+            arcLines,
+            anchor,
+            variationFont.size,
+            fontAttrs(variationFont, arcLabelColor),
+            (t) => this.escapeXml(t)
+          );
+        const arcTextBg = (x: number, firstBaseline: number, anchor: "middle" | "start"): string =>
+          svgLabelBg({
+            cx: x,
+            y: firstBaseline,
+            textLen: Math.ceil(arcBox.w / (variationFont.size * CHAR_W_RATIO)),
+            textAnchor: anchor,
+            fontSize: variationFont.size,
+            bgShow: arcBgShow,
+            bgColor: arcBgColor,
+            bgTransparency: arcBgTransparency,
+            lines: arcLines.length
+          });
         if (vertical) {
           const cyK = padTop + (iK + 0.5) * stepX;
           const cyK1 = padTop + (iK1 + 0.5) * stepX;
@@ -4759,6 +5276,7 @@ export class Visual implements IVisual {
                   cardDecimals: bridgeDecimals,
                   autoDecimals: decimals,
                   locale: this.locale,
+                  ...ibcsNum,
                   dataMaxAbs,
                   withSign: true
                 })
@@ -4775,9 +5293,9 @@ export class Visual implements IVisual {
               }
             }
           }
-          const xArc = arcWall + variationArcDrop;
+          const xArc = arcWall + variationArcDrop + arcBubbleShiftV;
 
-          const labelText = buildArcLabel(itemK, itemK1, p);
+          const labelText = arcLabelText(arcLines);
           const escapedLabel = this.escapeXml(labelText);
 
           const dropEndK = arrowSize > 0 && arrowAtStart ? anchorXK + arrowSize : anchorXK;
@@ -4801,8 +5319,20 @@ export class Visual implements IVisual {
             }
           }
 
+          if (!arcLegacy) {
+            const cy = alongArc(cyK, cyK1);
+            if (arcBubbleOn) {
+              svg += arcBubbleSvg(xArc, cy);
+              svg += arcTextAt(xArc, cy, "middle");
+            } else {
+              const tx = xArc + variationArcLabelGap;
+              svg += arcTextBg(tx, cy + (arcLineBaselines(arcLines)[0] ?? 0), "start");
+              svg += arcTextAt(tx, cy, "start");
+            }
+            continue;
+          }
           const labelX = xArc + variationArcLabelGap;
-          const labelY = (cyK + cyK1) / 2 + variationFont.size / 3;
+          const labelY = alongArc(cyK, cyK1) + variationFont.size / 3;
           svg += svgLabelBg({
             cx: labelX,
             y: labelY,
@@ -4827,9 +5357,9 @@ export class Visual implements IVisual {
         for (let mid = iK + 1; mid < iK1; mid++) {
           arcCeiling = Math.min(arcCeiling, yScaleClamped(items[mid].y1));
         }
-        const yArc = arcCeiling - variationArcDrop;
+        const yArc = arcCeiling - variationArcDrop - arcBubbleLift;
 
-        const labelText = buildArcLabel(itemK, itemK1, p);
+        const labelText = arcLabelText(arcLines);
         const escapedLabel = this.escapeXml(labelText);
 
         const dropEndK = arrowSize > 0 && arrowAtStart ? anchorYK - arrowSize : anchorYK;
@@ -4853,7 +5383,28 @@ export class Visual implements IVisual {
           }
         }
 
-        const labelX = (cxK + cxK1) / 2;
+        const labelX = alongArc(cxK, cxK1);
+        if (!arcLegacy) {
+          const half = arcBox.w / 2;
+          const refNat = arcBubbleOn ? yArc : yArc - variationArcLabelGap;
+          const baselines = arcLineBaselines(arcLines);
+          const lastBaseline = baselines[baselines.length - 1] ?? 0;
+          const ref = placeLabelY({ x0: labelX - half, x1: labelX + half, y: refNat }, placedArcLabels, {
+            step: -arcRowStep,
+            lineH: arcBox.h + 1,
+            minY: padTop - variationArcBlockH + (arcBubbleOn ? arcBox.h / 2 + 2 : arcBox.h),
+            maxY: refNat
+          });
+          if (arcBubbleOn) {
+            svg += arcBubbleSvg(labelX, ref);
+            svg += arcTextAt(labelX, ref, "middle");
+          } else {
+            const centreY = ref - lastBaseline;
+            svg += arcTextBg(labelX, centreY + (baselines[0] ?? 0), "middle");
+            svg += arcTextAt(labelX, centreY, "middle");
+          }
+          continue;
+        }
         const arcEstW = escapedLabel.length * variationFont.size * CHAR_W_RATIO;
         const labelY = placeLabelY(
           {
@@ -4945,7 +5496,7 @@ export class Visual implements IVisual {
     ) {
       const adim = this.cachedAnalysisDim;
       const numRows = adim.rowLabels.length;
-      const tableFont = readFontConfig(s.analysisTable.font, 11);
+      const tableFont = readFont(s.analysisTable.font, 11);
       const pillarValuesColor = this.isHighContrast
         ? this.hcForeground
         : safeHex(String(s.analysisTable.pillarValuesColor.value.value || "").trim(), "#333333");
@@ -4964,7 +5515,7 @@ export class Visual implements IVisual {
       const labelColor = this.isHighContrast
         ? this.hcForeground
         : safeHex(s.analysisTable.rowLabelColor.value.value, "#666666");
-      const rowLabelFont = readFontConfig(s.analysisTable.rowLabelFont, 11);
+      const rowLabelFont = readFont(s.analysisTable.rowLabelFont, 11);
       const separatorStyle = String(
         s.analysisTable.separatorStyle.value?.value || "solid"
       );
@@ -5060,7 +5611,7 @@ export class Visual implements IVisual {
       const numRows = adim.rowLabels.length;
       const tableY0 = height - legendPadBottom - tableHeight;
       const actualRowH = numRows > 0 ? tableHeight / numRows : tableRowH;
-      const tableFont = readFontConfig(s.analysisTable.font, 11);
+      const tableFont = readFont(s.analysisTable.font, 11);
       const pillarValuesColor = this.isHighContrast
         ? this.hcForeground
         : safeHex(String(s.analysisTable.pillarValuesColor.value.value || "").trim(), "#333333");
@@ -5079,7 +5630,7 @@ export class Visual implements IVisual {
       const labelColor = this.isHighContrast
         ? this.hcForeground
         : safeHex(s.analysisTable.rowLabelColor.value.value, "#666666");
-      const rowLabelFont = readFontConfig(s.analysisTable.rowLabelFont, 11);
+      const rowLabelFont = readFont(s.analysisTable.rowLabelFont, 11);
       const separatorStyle = String(
         s.analysisTable.separatorStyle.value?.value || "solid"
       );
@@ -5514,7 +6065,24 @@ export class Visual implements IVisual {
     });
     outlineStyle.selector = selector;
 
-    return [fillStyle, outlineMode, outlineColor, outlineWidth, outlineStyle];
+    const scenarioValue =
+      pillarsObj?.scenarioOverride === undefined ? "default" : String(pillarsObj.scenarioOverride);
+    const scenario = new formattingSettings.ItemDropdown({
+      name: "scenarioOverride",
+      displayName: "Scenario",
+      items: [
+        { value: "default", displayName: "(default)" },
+        { value: "none", displayName: "None" },
+        { value: "AC", displayName: "AC — actual (solid)" },
+        { value: "PY", displayName: "PY — previous year (grey)" },
+        { value: "PL", displayName: "PL — plan (outlined)" },
+        { value: "FC", displayName: "FC — forecast (hatched)" }
+      ],
+      value: { value: scenarioValue, displayName: scenarioValue }
+    });
+    scenario.selector = selector;
+
+    return [scenario, fillStyle, outlineMode, outlineColor, outlineWidth, outlineStyle];
   }
 
   // eslint-disable-next-line max-lines-per-function
@@ -5619,6 +6187,26 @@ export class Visual implements IVisual {
     this.formattingSettings.pillars.pillarColor.visible =
       !legendActive || legendApplyRaw === "bridges" || legendSplit;
     {
+      const b = this.formattingSettings.bridges;
+      b.colorMode.visible = b.colorBridge.visible;
+      const impactMode =
+        b.colorBridge.visible && String(b.colorMode.value?.value) === "impact";
+      if (impactMode) {
+        b.colorBridge.visible = false;
+        b.colorBridgeLabel.visible = false;
+      }
+      for (const sl of [
+        b.impactPolarity,
+        b.invertedList,
+        b.neutralThreshold,
+        b.colorGood,
+        b.colorBad,
+        b.colorNeutral
+      ]) {
+        sl.visible = impactMode;
+      }
+    }
+    {
       const lg = this.formattingSettings.legend;
       const stackedOnly: Array<{ visible?: boolean }> = [
         lg.show,
@@ -5639,7 +6227,59 @@ export class Visual implements IVisual {
         lg.segmentLabelBgTransparency
       ];
       for (const slice of stackedOnly) slice.visible = !legendSplit;
-      lg.splitLabelWrap.visible = legendSplit;
+      const splitCascade = legendSplit && !this.legendSplitAsText;
+      lg.splitStyle.visible = legendSplit;
+      lg.splitTextBarColors.visible = legendSplit && !splitCascade;
+      const slicedBar = legendSplit && !splitCascade && lg.splitTextBarColors.value !== false;
+      lg.splitTextSliceGap.visible = slicedBar;
+      lg.splitTextSliceLabels.visible = slicedBar;
+      lg.splitLabelWrap.visible = splitCascade;
+      lg.bridgeList.visible = String(lg.bridgeScope.value?.value ?? "all") === "list";
+      lg.splitShowPartName.visible = legendSplit;
+      lg.splitShowPartValue.visible = legendSplit;
+      lg.splitShowRemainderLabel.visible = legendSplit;
+      lg.splitShowTotal.visible = splitCascade;
+    }
+
+    {
+      const va = this.formattingSettings.variationArc;
+      const bubble = String(va.labelStyle.value?.value ?? "text") === "bubble";
+      const src = String(va.defaultSource.value?.value ?? "auto-both");
+      const showsBoth = src !== "auto-abs" && src !== "auto-pct" && src !== "measure";
+      const showsPct = src !== "auto-abs" && src !== "measure";
+      va.labelBgShow.visible = !bubble;
+      va.labelBgColor.visible = !bubble;
+      va.labelBgTransparency.visible = !bubble;
+      va.labelLayout.visible = showsBoth;
+      va.labelOrder.visible = showsBoth;
+      va.pctParens.visible = showsBoth;
+      va.pctFontSize.visible = showsPct;
+      va.pctItalic.visible = showsPct;
+      const hasCaption = String(va.caption.value ?? "").trim() !== "";
+      va.captionPosition.visible = hasCaption;
+      va.captionFontSize.visible = hasCaption;
+      const bySign = !!va.labelColorBySign.value;
+      va.labelPosColor.visible = bySign;
+      va.labelNegColor.visible = bySign;
+      const shape = String(va.bubbleShape.value?.value ?? "ellipse");
+      const fillMode = String(va.bubbleFillMode.value?.value ?? "fixed");
+      const borderMode = String(va.bubbleBorderMode.value?.value ?? "fixed");
+      va.bubbleShape.visible = bubble;
+      va.bubbleCornerRadius.visible = bubble && (shape === "rect" || shape === "square");
+      va.bubblePaddingX.visible = bubble;
+      va.bubblePaddingY.visible = bubble;
+      va.bubbleShadow.visible = bubble;
+      va.bubbleFillMode.visible = bubble;
+      va.bubbleFillColor.visible = bubble && fillMode === "fixed";
+      va.bubblePosFillColor.visible = bubble && fillMode === "sign";
+      va.bubbleNegFillColor.visible = bubble && fillMode === "sign";
+      va.bubbleFillTransparency.visible = bubble && fillMode !== "none";
+      va.bubbleBorderMode.visible = bubble;
+      va.bubbleBorderColor.visible = bubble && borderMode === "fixed";
+      va.bubblePosBorderColor.visible = bubble && borderMode === "sign";
+      va.bubbleNegBorderColor.visible = bubble && borderMode === "sign";
+      va.bubbleBorderWidth.visible = bubble && borderMode !== "none";
+      va.bubbleBorderStyle.visible = bubble && borderMode !== "none";
     }
 
     const verticalPane =
@@ -5687,6 +6327,9 @@ export class Visual implements IVisual {
               : {}),
             ...(cat.outlineOverride?.style !== undefined
               ? { outlineStyleOverride: cat.outlineOverride.style }
+              : {}),
+            ...(cat.scenarioOverride !== undefined
+              ? { scenarioOverride: cat.scenarioOverride }
               : {})
           })
         );
@@ -6266,6 +6909,11 @@ function readFontConfig(
     italic: !!f.italic?.value,
     underline: !!f.underline?.value
   };
+}
+
+function scaleFont(font: FontConfig, scalePct: number): FontConfig {
+  if (scalePct === 100) return font;
+  return { ...font, size: Math.round(font.size * scalePct) / 100 };
 }
 
 function fontAttrs(font: FontConfig, color: string): string {

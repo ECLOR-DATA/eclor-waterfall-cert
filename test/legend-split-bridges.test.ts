@@ -251,10 +251,19 @@ describe("Split bridges — format pane", () => {
     expect(v.formattingSettings.bridges.colorBridge.visible).toBe(false);
   });
 
-  test("split: only the layout remains; the bridge colour picker comes back", () => {
+  test("split: only the layout group remains; the bridge colour picker comes back", () => {
     const { v } = run(ocdDv({ layout: "subBridges" }));
     const names = legendSliceNames(v).filter(Boolean);
-    expect(names).toEqual(["layout", "splitLabelWrap"]);
+    expect(names).toEqual([
+      "layout",
+      "splitStyle",
+      "bridgeScope",
+      "splitShowPartName",
+      "splitShowPartValue",
+      "splitShowRemainderLabel",
+      "splitLabelWrap",
+      "splitShowTotal"
+    ]);
     expect(v.formattingSettings.bridges.colorBridge.visible).toBe(true);
     expect(v.formattingSettings.pillars.pillarColor.visible).toBe(true);
   });

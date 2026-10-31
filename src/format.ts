@@ -204,7 +204,7 @@ export function formatIsPercent(formatStr: string): boolean {
   return clean.includes("%");
 }
 
-export function formatActualLabel(opts: {
+export interface ActualLabelOptions {
   value: number;
   modelFormat: string;
   cardUnits: string;
@@ -213,7 +213,11 @@ export function formatActualLabel(opts: {
   locale: string;
   dataMaxAbs: number;
   withSign?: boolean;
-}): string {
+  uniformDecimals?: number;
+  stripSuffixDivisor?: number;
+}
+
+export function formatActualLabel(opts: ActualLabelOptions): string {
   const {
     value,
     modelFormat,
@@ -222,7 +226,8 @@ export function formatActualLabel(opts: {
     autoDecimals,
     locale,
     dataMaxAbs,
-    withSign
+    withSign,
+    uniformDecimals, stripSuffixDivisor
   } = opts;
 
   const hasModelFormat = !!modelFormat && modelFormat.length > 0;
@@ -231,9 +236,13 @@ export function formatActualLabel(opts: {
   if (hasMultiPattern) {
     const isAutoUnits = !cardUnits || cardUnits === "auto";
     const formatWins = isAutoUnits || multiPatternCarriesAffix(modelFormat);
-    const scale = formatWins
+    const scaleRaw = formatWins
       ? { scale: 1, suffix: "" }
       : getDisplayScale(cardUnits, dataMaxAbs);
+    const scale =
+      stripSuffixDivisor && scaleRaw.scale >= 1000 && scaleRaw.scale === stripSuffixDivisor
+        ? { scale: scaleRaw.scale, suffix: "" }
+        : scaleRaw;
     const scaledValue = value / scale.scale;
     const decOverride = cardDecimals > 0 ? cardDecimals : undefined;
     const body = formatVarianceValue(scaledValue, modelFormat, locale, decOverride) + scale.suffix;
@@ -278,9 +287,31 @@ export function formatActualLabel(opts: {
   } else if (!hasModelFormat) {
     const base = !cardUnits || cardUnits === "auto" ? autoDecimals : 0;
     const divisor = scaleValue === 1001 ? 1e3 : scaleValue;
-    createOpts.precision = base > 0 ? base : autoScaleDecimals(value, divisor);
+    createOpts.precision = base > 0 ? base : (uniformDecimals ?? autoScaleDecimals(value, divisor));
   }
+  const realDivisor = scaleValue === 1001 ? 1e3 : scaleValue;
+  const stripSuffix = !!stripSuffixDivisor && realDivisor >= 1e3 && realDivisor === stripSuffixDivisor;
+  if (stripSuffix) createOpts.value = 0;
   const formatter = pbiValueFormatter.create(createOpts);
-  const body = formatter.format(value);
+  const body = formatter.format(stripSuffix ? value / realDivisor : value);
   return withSign && value > 0 && !body.startsWith("+") ? "+" + body : body;
+}
+
+export function labelScaleDivisor(cardUnits: string, hasModelFormat: boolean, dataMaxAbs: number): number {
+  switch (cardUnits) {
+    case "thousands":
+      return 1e3;
+    case "millions":
+      return 1e6;
+    case "billions":
+      return 1e9;
+    case "none":
+      return 0;
+    default:
+      if (hasModelFormat) return 0;
+      if (dataMaxAbs >= 1e9) return 1e9;
+      if (dataMaxAbs >= 1e6) return 1e6;
+      if (dataMaxAbs >= 1e3) return 1e3;
+      return 0;
+  }
 }

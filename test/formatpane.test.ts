@@ -122,6 +122,7 @@ describe("getFormattingModel — dynamic sub-blocks (TG-07)", () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       expect(g.slices.map((s: any) => s.name)).toEqual([
         "isPillar",
+        "scenarioOverride",
         "fillStyle",
         "outlineMode",
         "outlineColorOverride",
@@ -168,6 +169,7 @@ describe("getFormattingModel — dynamic sub-blocks (TG-07)", () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect(y1.slices.map((s: any) => s.name)).toEqual([
       "measureFillColor",
+      "scenarioOverride",
       "fillStyle",
       "outlineMode",
       "outlineColorOverride",

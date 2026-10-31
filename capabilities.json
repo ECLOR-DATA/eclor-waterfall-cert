@@ -132,6 +132,9 @@
           "displayName": "Show items with no data",
           "type": { "bool": true }
         },
+        "textScale": { "displayName": "Text size (%)", "type": { "numeric": true } },
+        "uniformDecimals": { "displayName": "Uniform decimals", "type": { "bool": true } },
+        "unitSuffix": { "displayName": "Unit suffix on labels", "type": { "bool": true } },
         "formatString": {
           "type": { "formatting": { "formatString": true } }
         }
@@ -259,6 +262,8 @@
           "displayName": "Y axis floor offset (%) — Comparison only",
           "type": { "numeric": true }
         },
+        "scaleMax": { "displayName": "Scale max (0 = auto)", "type": { "numeric": true } },
+        "scaleMin": { "displayName": "Scale min (0 = auto)", "type": { "numeric": true } },
         "showBrokenAxis": {
           "displayName": "Show broken axis indicator",
           "type": { "bool": true }
@@ -391,7 +396,33 @@
         },
         "bold": { "displayName": "Bold", "type": { "bool": true } },
         "italic": { "displayName": "Italic", "type": { "bool": true } },
-        "underline": { "displayName": "Underline", "type": { "bool": true } }
+        "underline": { "displayName": "Underline", "type": { "bool": true } },
+        "colorMode": {
+          "displayName": "Color by",
+          "type": {
+            "enumeration": [
+              { "value": "single", "displayName": "Single color" },
+              { "value": "impact", "displayName": "Impact (IBCS)" }
+            ]
+          }
+        },
+        "impactPolarity": {
+          "displayName": "Polarity",
+          "type": {
+            "enumeration": [
+              { "value": "higherBetter", "displayName": "Higher is better" },
+              { "value": "higherWorse", "displayName": "Higher is worse (costs)" }
+            ]
+          }
+        },
+        "invertedList": { "displayName": "Inverted categories", "type": { "text": true } },
+        "neutralThreshold": { "displayName": "Neutral threshold", "type": { "numeric": true } },
+        "colorGood": { "displayName": "Good", "type": { "fill": { "solid": { "color": true } } } },
+        "colorBad": { "displayName": "Bad", "type": { "fill": { "solid": { "color": true } } } },
+        "colorNeutral": {
+          "displayName": "Neutral",
+          "type": { "fill": { "solid": { "color": true } } }
+        }
       }
     },
     "pillars": {
@@ -490,6 +521,39 @@
             ]
           }
         },
+        "scenario": {
+          "displayName": "Scenario",
+          "type": {
+            "enumeration": [
+              { "value": "none", "displayName": "None" },
+              { "value": "AC", "displayName": "AC — actual (solid)" },
+              { "value": "PY", "displayName": "PY — previous year (grey)" },
+              { "value": "PL", "displayName": "PL — plan (outlined)" },
+              { "value": "FC", "displayName": "FC — forecast (hatched)" }
+            ]
+          }
+        },
+        "scenarioOverride": {
+          "displayName": "Scenario (per pillar)",
+          "type": {
+            "enumeration": [
+              { "value": "default", "displayName": "(default)" },
+              { "value": "none", "displayName": "None" },
+              { "value": "AC", "displayName": "AC — actual (solid)" },
+              { "value": "PY", "displayName": "PY — previous year (grey)" },
+              { "value": "PL", "displayName": "PL — plan (outlined)" },
+              { "value": "FC", "displayName": "FC — forecast (hatched)" }
+            ]
+          }
+        },
+        "scenarioColor": {
+          "displayName": "AC / PL / FC color",
+          "type": { "fill": { "solid": { "color": true } } }
+        },
+        "scenarioColorPrevious": {
+          "displayName": "PY color",
+          "type": { "fill": { "solid": { "color": true } } }
+        },
         "colorPillarLabel": {
           "displayName": "Pillar label color",
           "type": { "fill": { "solid": { "color": true } } }
@@ -565,7 +629,33 @@
             ]
           }
         },
+        "splitStyle": {
+          "displayName": "Split style",
+          "type": {
+            "enumeration": [
+              { "value": "cascade", "displayName": "Mini-cascade" },
+              { "value": "text", "displayName": "Total + detail text" }
+            ]
+          }
+        },
+        "splitTextBarColors": { "displayName": "Colour the bar by part", "type": { "bool": true } },
+        "splitTextSliceGap": { "displayName": "Gap between parts", "type": { "numeric": true } },
+        "splitTextSliceLabels": { "displayName": "Values in parts", "type": { "bool": true } },
+        "bridgeScope": {
+          "displayName": "Bridges",
+          "type": {
+            "enumeration": [
+              { "value": "all", "displayName": "All bridges" },
+              { "value": "list", "displayName": "Listed bridges only" }
+            ]
+          }
+        },
+        "bridgeList": { "displayName": "Listed bridges", "type": { "text": true } },
+        "splitShowPartName": { "displayName": "Part name", "type": { "bool": true } },
+        "splitShowPartValue": { "displayName": "Part value", "type": { "bool": true } },
+        "splitShowRemainderLabel": { "displayName": "Remainder label", "type": { "bool": true } },
         "splitLabelWrap": { "displayName": "Wrap part labels", "type": { "bool": true } },
+        "splitShowTotal": { "displayName": "Bridge total", "type": { "bool": true } },
         "show": { "displayName": "Show", "type": { "bool": true } },
         "position": {
           "displayName": "Position",
@@ -1071,7 +1161,107 @@
         },
         "bold": { "displayName": "Bold", "type": { "bool": true } },
         "italic": { "displayName": "Italic", "type": { "bool": true } },
-        "underline": { "displayName": "Underline", "type": { "bool": true } }
+        "underline": { "displayName": "Underline", "type": { "bool": true } },
+        "labelStyle": {
+          "displayName": "Label style",
+          "type": {
+            "enumeration": [
+              { "value": "text", "displayName": "Text above the line" },
+              { "value": "bubble", "displayName": "Bubble on the line" }
+            ]
+          }
+        },
+        "labelLayout": {
+          "displayName": "Value and percentage",
+          "type": {
+            "enumeration": [
+              { "value": "inline", "displayName": "On one line" },
+              { "value": "stack", "displayName": "On two lines" }
+            ]
+          }
+        },
+        "labelOrder": {
+          "displayName": "Order",
+          "type": {
+            "enumeration": [
+              { "value": "value", "displayName": "Value first" },
+              { "value": "pct", "displayName": "Percentage first" }
+            ]
+          }
+        },
+        "pctParens": { "displayName": "Percentage in brackets", "type": { "bool": true } },
+        "pctFontSize": { "displayName": "Percentage text size (0 = same)", "type": { "numeric": true } },
+        "pctItalic": { "displayName": "Percentage in italics", "type": { "bool": true } },
+        "labelPrefix": { "displayName": "Prefix", "type": { "text": true } },
+        "caption": { "displayName": "Caption line", "type": { "text": true } },
+        "captionPosition": {
+          "displayName": "Caption position",
+          "type": {
+            "enumeration": [
+              { "value": "above", "displayName": "Above" },
+              { "value": "below", "displayName": "Below" }
+            ]
+          }
+        },
+        "captionFontSize": { "displayName": "Caption text size (0 = same)", "type": { "numeric": true } },
+        "labelAlong": { "displayName": "Position along the arc (%)", "type": { "numeric": true } },
+        "labelColorBySign": { "displayName": "Label color by sign", "type": { "bool": true } },
+        "labelPosColor": { "displayName": "Increase label color", "type": { "fill": { "solid": { "color": true } } } },
+        "labelNegColor": { "displayName": "Decrease label color", "type": { "fill": { "solid": { "color": true } } } },
+        "bubbleShape": {
+          "displayName": "Shape",
+          "type": {
+            "enumeration": [
+              { "value": "ellipse", "displayName": "Ellipse" },
+              { "value": "circle", "displayName": "Circle" },
+              { "value": "pill", "displayName": "Pill" },
+              { "value": "rect", "displayName": "Rectangle" },
+              { "value": "square", "displayName": "Square" }
+            ]
+          }
+        },
+        "bubbleCornerRadius": { "displayName": "Corner radius (px)", "type": { "numeric": true } },
+        "bubblePaddingX": { "displayName": "Horizontal padding (px)", "type": { "numeric": true } },
+        "bubblePaddingY": { "displayName": "Vertical padding (px)", "type": { "numeric": true } },
+        "bubbleShadow": { "displayName": "Shadow", "type": { "bool": true } },
+        "bubbleFillMode": {
+          "displayName": "Fill",
+          "type": {
+            "enumeration": [
+              { "value": "fixed", "displayName": "Fixed color" },
+              { "value": "sign", "displayName": "By sign" },
+              { "value": "none", "displayName": "None" }
+            ]
+          }
+        },
+        "bubbleFillColor": { "displayName": "Fill color", "type": { "fill": { "solid": { "color": true } } } },
+        "bubblePosFillColor": { "displayName": "Increase fill", "type": { "fill": { "solid": { "color": true } } } },
+        "bubbleNegFillColor": { "displayName": "Decrease fill", "type": { "fill": { "solid": { "color": true } } } },
+        "bubbleFillTransparency": { "displayName": "Fill transparency (%)", "type": { "numeric": true } },
+        "bubbleBorderMode": {
+          "displayName": "Border",
+          "type": {
+            "enumeration": [
+              { "value": "fixed", "displayName": "Fixed color" },
+              { "value": "sign", "displayName": "By sign" },
+              { "value": "none", "displayName": "None" }
+            ]
+          }
+        },
+        "bubbleBorderColor": { "displayName": "Border color (empty = line color)", "type": { "fill": { "solid": { "color": true } } } },
+        "bubblePosBorderColor": { "displayName": "Increase border", "type": { "fill": { "solid": { "color": true } } } },
+        "bubbleNegBorderColor": { "displayName": "Decrease border", "type": { "fill": { "solid": { "color": true } } } },
+        "bubbleBorderWidth": { "displayName": "Border width (px)", "type": { "numeric": true } },
+        "bubbleBorderStyle": {
+          "displayName": "Border style",
+          "type": {
+            "enumeration": [
+              { "value": "solid", "displayName": "Solid" },
+              { "value": "dash", "displayName": "Dashed" },
+              { "value": "dot", "displayName": "Dotted" }
+            ]
+          }
+        }
       }
     }
   },
