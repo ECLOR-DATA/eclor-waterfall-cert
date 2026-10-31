@@ -32,6 +32,7 @@ import {
   formatActualLabel,
   formatIsPercent,
   distinctTickDecimals,
+  labelScaleDivisor,
   pickFormat,
   readDynamicFormat,
   safeHex,
@@ -48,6 +49,18 @@ import {
   resolveFillVariant
 } from "./svgPatterns";
 import { buildTooltipItems, TooltipBuildContext } from "./tooltip";
+import {
+  ScenarioOverride,
+  applyFixedScale,
+  impactOf,
+  niceTicks,
+  parseImpactPolarity,
+  parseScenario,
+  parseScenarioOverride,
+  resolveScenario,
+  scenarioPaint,
+  uniformScaleDecimals
+} from "./ibcs";
 import { relayoutPane } from "./paneLayout";
 import {
   OutlineGlobal,
@@ -207,6 +220,7 @@ interface CategoryDisplayInfo {
   bridgeLabelColor?: string;
   bridgeLabelBgColor?: string;
   fillStyleOverride?: FillVariantOverride;
+  scenarioOverride?: ScenarioOverride;
   outlineOverride?: OutlineOverride;
   pillarLabelColor?: string;
   pillarLabelBgColor?: string;
@@ -235,6 +249,7 @@ interface ActualMeasureInfo {
   measureLabelBgColor?: string;
   fillStyleOverride?: FillVariantOverride;
   outlineOverride?: OutlineOverride;
+  scenarioOverride?: ScenarioOverride;
   showBridgesBefore?: boolean;
   hiddenBridgesMode?: "remove" | "aggregate";
   aggregateBridgeLabel?: string;
@@ -365,6 +380,16 @@ const STR_DATA_CAP_DETAIL = {
   key: "Visual_DataCapDetail",
   fallback: "Showing the first 10,000 rows. Consider applying a filter or drilling down."
 };
+const STR_SCALE_OVERFLOW_HEADER = {
+  key: "Visual_ScaleOverflowHeader",
+  fallback: "Scale widened"
+};
+const STR_SCALE_OVERFLOW_DETAIL = {
+  key: "Visual_ScaleOverflowDetail",
+  fallback:
+    "A value lies outside Y axis → Scale max / Scale min, so the axis was widened to show it: this visual no longer shares that scale."
+};
+const STR_UNIT_NOTE = { key: "Visual_UnitNote", fallback: "in {0}" };
 const STR_ERR_COMPARISON_PILLARS = {
   key: "Visual_ErrComparisonPillars",
   fallback: "Comparison mode needs at least 2 pillars. Toggle them in the Format pane → Pillars (per category)."
@@ -1956,6 +1981,10 @@ export class Visual implements IVisual {
             ? undefined
             : parseFillVariantOverride(pillarsObj.fillStyle),
         outlineOverride: readOutlineOverride(pillarsObj),
+        scenarioOverride:
+          pillarsObj?.scenarioOverride === undefined
+            ? undefined
+            : parseScenarioOverride(pillarsObj.scenarioOverride),
         showBridgesBefore:
           pillarsObj?.showBridgesBefore === undefined
             ? undefined
@@ -2200,6 +2229,10 @@ export class Visual implements IVisual {
           ? undefined
           : parseFillVariantOverride(pillarsRow.fillStyle);
       const outlineOverrideRow = readOutlineOverride(pillarsRow);
+      const scenarioOverrideRow =
+        pillarsRow.scenarioOverride === undefined
+          ? undefined
+          : parseScenarioOverride(pillarsRow.scenarioOverride);
       const fxColors = this.resolveCategoryFx(rowIdxs, fxCtx);
       const pillarColorOverride = fxColors.pillarColor;
       const pillarLabelColorOverride = fxColors.pillarLabelColor;
@@ -2282,6 +2315,7 @@ export class Visual implements IVisual {
         isPillar,
         fillStyleOverride,
         outlineOverride: outlineOverrideRow,
+        scenarioOverride: scenarioOverrideRow,
         pillarColor: resolvedPillarColor,
         pillarLabelColor: pillarLabelColorOverride,
         pillarLabelBgColor: pillarLabelBgColorOverride,
@@ -2570,6 +2604,10 @@ export class Visual implements IVisual {
           ? undefined
           : parseFillVariantOverride(pillarsObjForColor.fillStyle);
       const outlineOverrideNoCat = readOutlineOverride(pillarsObjForColor);
+      const scenarioOverrideNoCat =
+        pillarsObjForColor?.scenarioOverride === undefined
+          ? undefined
+          : parseScenarioOverride(pillarsObjForColor.scenarioOverride);
       const arcObjNoCat = colObjectsForColor?.variationArc as
         | Record<string, unknown>
         | undefined;
@@ -2620,6 +2658,7 @@ export class Visual implements IVisual {
         format: m.format,
         fillStyleOverride: fillStyleOverrideNoCat,
         outlineOverride: outlineOverrideNoCat,
+        scenarioOverride: scenarioOverrideNoCat,
         pillarColor: measureFill || defaultPillarColor,
         pillarLabelColor: measureLabelColorPerRow,
         pillarLabelBgColor: measureLabelBgPerRow,
@@ -2812,6 +2851,7 @@ export class Visual implements IVisual {
           pillarLabelBgColor: m.measureLabelBgColor,
           fillStyleOverride: m.fillStyleOverride,
           outlineOverride: m.outlineOverride,
+          scenarioOverride: m.scenarioOverride,
           selectionId: null,
           showArc: m.showArc,
           arrowEnds: m.arrowEnds,
@@ -3342,6 +3382,46 @@ export class Visual implements IVisual {
     const bridgeDecimals = clamp(Number(s.bridges.decimalPlaces.value) || 0, 0, 6);
     const pillarCustomFormat = readCustomFormat(s.pillars.customFormat.value);
     const bridgeCustomFormat = readCustomFormat(s.bridges.customFormat.value);
+    const pillarDivisor = labelScaleDivisor(
+      pillarUnitsRaw,
+      !!pickFormat(pillarCustomFormat, this.cachedActualFormat),
+      dataMaxAbs
+    );
+    const bridgeDivisor = labelScaleDivisor(
+      bridgeUnitsRaw,
+      !!pickFormat(bridgeCustomFormat, this.cachedActualFormat),
+      dataMaxAbs
+    );
+    const uniformDec = s.general.uniformDecimals.value
+      ? Math.max(
+          uniformScaleDecimals(
+            items.filter((it) => it.type === "pillar").map((it) => it.actualVal),
+            pillarDivisor
+          ),
+          uniformScaleDecimals(
+            items.filter((it) => it.type !== "pillar").map((it) => it.actual),
+            bridgeDivisor
+          )
+        )
+      : undefined;
+    const unitNoteDivisor = s.general.unitSuffix.value === false ? pillarDivisor : 0;
+    const ibcsNum = {
+      uniformDecimals: uniformDec,
+      stripSuffixDivisor: unitNoteDivisor > 0 ? unitNoteDivisor : undefined
+    };
+    const unitNoteText =
+      unitNoteDivisor > 0
+        ? this.localize(STR_UNIT_NOTE).replace(
+            "{0}",
+            unitNoteDivisor === 1e9 ? "bn" : unitNoteDivisor === 1e6 ? "M" : "K"
+          )
+        : "";
+    const unitNoteFont = { ...yAxisFont, bold: false, italic: false, underline: false };
+    const unitNoteH = unitNoteText ? Math.round(unitNoteFont.size * 1.2) + 4 : 0;
+    const axisScale =
+      unitNoteDivisor > 0 && displayScale.scale === unitNoteDivisor
+        ? { scale: displayScale.scale, suffix: "" }
+        : displayScale;
 
     const axisIsPercent = formatIsPercent(this.cachedActualFormat);
     const yTickText = (v: number, tickDecimals: number): string =>
@@ -3355,7 +3435,7 @@ export class Visual implements IVisual {
             locale: this.locale,
             dataMaxAbs: Math.abs(v) || 1
           })
-        : formatWithScale(v, displayScale, tickDecimals, this.locale);
+        : formatWithScale(v, axisScale, tickDecimals, this.locale);
 
     const probeTicks: number[] = [];
     {
@@ -3622,7 +3702,7 @@ export class Visual implements IVisual {
     }
     const variationArcBlockH = variationArcBaseBlockH + arcStaggerRows * arcRowStep;
 
-    let padTop = 30 + railBlockTopH + legendPadTop + variationArcBlockH;
+    let padTop = 30 + railBlockTopH + legendPadTop + variationArcBlockH + unitNoteH;
 
     let chartW = width - padLeft - padRight;
     let stepX = chartW / Math.max(1, items.length);
@@ -3702,7 +3782,11 @@ export class Visual implements IVisual {
         ? (tableHeaderLines - 1) * tableRowLabelSize * TABLE_HEADER_LINE_HEIGHT
         : 0;
       padTop =
-        legendPadTop + yTitleSpace + (vTopTextSize > 0 ? vTopTextSize + 18 : 20) + vHeaderExtra;
+        legendPadTop +
+        yTitleSpace +
+        (vTopTextSize > 0 ? vTopTextSize + 18 : 20) +
+        vHeaderExtra +
+        unitNoteH;
       padBottom = 20 + legendPadBottom;
       chartH = Math.max(10, height - padTop - padBottom);
       stepX = chartH / Math.max(1, items.length);
@@ -3818,7 +3902,24 @@ export class Visual implements IVisual {
       yMinOffsetPct,
       userMode
     });
-    const { yMin, yMax, allPillarsPositive, allPillarsNegative } = yRangeResult;
+    const { allPillarsPositive, allPillarsNegative } = yRangeResult;
+    const fixedScale = applyFixedScale(
+      { yMin: yRangeResult.yMin, yMax: yRangeResult.yMax },
+      { min: Math.min(minRunning, minVisual), max: maxVisual },
+      {
+        min: Math.min(0, Number(s.yAxis.scaleMin.value) || 0),
+        max: Math.max(0, Number(s.yAxis.scaleMax.value) || 0)
+      }
+    );
+    const { yMin, yMax } = fixedScale;
+    const fixedScaleOn =
+      (Number(s.yAxis.scaleMax.value) || 0) > 0 || (Number(s.yAxis.scaleMin.value) || 0) < 0;
+    if (fixedScale.overflow) {
+      this.host.displayWarningIcon?.(
+        this.localize(STR_SCALE_OVERFLOW_HEADER),
+        this.localize(STR_SCALE_OVERFLOW_DETAIL)
+      );
+    }
 
     const yRange = yMax - yMin;
     const barW = Math.max(1, Math.min(Number(s.layout.barWidth.value) || 55, stepX * 0.75));
@@ -3852,6 +3953,11 @@ export class Visual implements IVisual {
       ? this.hcForeground
       : (userGlobalPillarColor || themedPillarDefault);
     const pillarFillGlobal = parseFillVariant(s.pillars.pillarFillStyle.value?.value);
+    const pillarScenarioGlobal = parseScenario(s.pillars.scenario.value?.value);
+    const scenarioColors = {
+      dark: safeHex(s.pillars.scenarioColor.value.value, "#404040"),
+      previous: safeHex(s.pillars.scenarioColorPrevious.value.value, "#a6a6a6")
+    };
     const pillarOutlineShow = !!s.pillars.outlineShow.value;
     const pillarOutlineColor = this.isHighContrast
       ? this.hcForeground
@@ -3869,6 +3975,25 @@ export class Visual implements IVisual {
       dashed: pillarOutlineDashed
     };
     const colorBridge = this.isHighContrast ? this.hcForeground : userColorBridge;
+    const bridgeImpactMode = String(s.bridges.colorMode.value?.value) === "impact";
+    const impactPolarity = parseImpactPolarity(s.bridges.impactPolarity.value?.value);
+    const impactNeutral = Math.max(0, Number(s.bridges.neutralThreshold.value) || 0);
+    const impactInverted = makeBridgeScope("list", s.bridges.invertedList.value);
+    const impactPalette = {
+      good: safeHex(s.bridges.colorGood.value.value, "#8cb400"),
+      bad: safeHex(s.bridges.colorBad.value.value, "#ff0000"),
+      neutral: safeHex(s.bridges.colorNeutral.value.value, "#a6a6a6")
+    };
+    const impactColorFor = (delta: number, categoryLabel: string): string | null =>
+      bridgeImpactMode
+        ? impactPalette[
+            impactOf(delta, {
+              polarity: impactPolarity,
+              inverted: bridgeInScope(categoryLabel, impactInverted),
+              neutral: impactNeutral
+            })
+          ]
+        : null;
     const colorBridgeLabel = this.isHighContrast
       ? this.hcForeground
       : userColorBridgeLabel;
@@ -3896,6 +4021,9 @@ export class Visual implements IVisual {
     svg += `<title>Waterfall chart</title>`;
     svg += `<desc>${this.escapeXml(generatedDesc)}</desc>`;
     svg += `<style>.wf-clickable{cursor:pointer}</style>`;
+    if (unitNoteText) {
+      svg += `<text class="wf-unit-note" x="4" y="${(legendPadTop + unitNoteFont.size + 1).toFixed(1)}" text-anchor="start"${fontAttrs(unitNoteFont, colorYAxis)}>${this.escapeXml(unitNoteText)}</text>`;
+    }
 
     const truncateToWidth = (text: string, maxWidth: number, fontSize: number): string => {
       const charWidth = fontSize * CHAR_W_RATIO;
@@ -4149,10 +4277,14 @@ export class Visual implements IVisual {
     const gridStroke = this.isHighContrast ? this.hcForeground : "#d4d4d4";
     if (showYAxis) {
       const tickValues: number[] = [];
-      for (let t = 0; t <= 5; t++) tickValues.push(yMin + (yRange * t) / 5);
+      if (fixedScaleOn) {
+        tickValues.push(...niceTicks(yMin, yMax, 5));
+      } else {
+        for (let t = 0; t <= 5; t++) tickValues.push(yMin + (yRange * t) / 5);
+      }
       const tickDecimals =
         decimals > 0 ? decimals : distinctTickDecimals(tickValues, displayScale, this.locale);
-      for (let t = 0; t <= 5; t++) {
+      for (let t = 0; t < tickValues.length; t++) {
         const v = tickValues[t];
         const py = yScale(v);
         if (vertical) {
@@ -4444,9 +4576,17 @@ export class Visual implements IVisual {
         const perCatPillarColor = isSynth
           ? item.pillarColor
           : cat?.pillarColor;
+        const scenario = cat?.isGrandTotal
+          ? null
+          : scenarioPaint(
+              resolveScenario(pillarScenarioGlobal, cat?.scenarioOverride),
+              scenarioColors
+            );
         const pillarColor = this.isHighContrast
           ? this.hcForeground
-          : (perCatPillarColor || defaultPillarColor);
+          : scenario
+            ? scenario.color
+            : (perCatPillarColor || defaultPillarColor);
         const pillarSegEnabled = legendSplit
           ? false
           : cat?.isGrandTotal
@@ -4526,7 +4666,9 @@ export class Visual implements IVisual {
         } else {
           const effPillarFill: BarFillVariant = cat?.isGrandTotal
             ? "solid"
-            : resolveFillVariant(pillarFillGlobal, cat?.fillStyleOverride);
+            : scenario
+              ? scenario.variant
+              : resolveFillVariant(pillarFillGlobal, cat?.fillStyleOverride);
           const eff = resolvePillarOutline(pillarOutlineGlobal, cat?.outlineOverride);
           const effOutlineColor = this.isHighContrast ? this.hcForeground : eff.color;
           const outlineActive =
@@ -4571,6 +4713,11 @@ export class Visual implements IVisual {
               ? gtBgColor
               : (perRowPillarLabelBgColor || pillarBgColor);
           const labelFill = resolvedPillarLabelColor;
+          const pillarPillDrawn = labelBgShow && !!resolvedPillarBgColor;
+          const scenarioInsideInk = (inside: boolean, preferred: string): string =>
+            inside && scenario && scenario.variant === "solid" && !pillarPillDrawn && !this.isHighContrast
+              ? contrastTextOn(pillarColor, preferred)
+              : preferred;
           const pillarLabelText = formatActualLabel({
             value: item.actualVal,
             modelFormat: pickFormat(
@@ -4582,6 +4729,7 @@ export class Visual implements IVisual {
             cardDecimals: pillarDecimals,
             autoDecimals: decimals,
             locale: this.locale,
+            ...ibcsNum,
             dataMaxAbs
           });
           const escapedPillarLabel = this.escapeXml(pillarLabelText);
@@ -4592,6 +4740,7 @@ export class Visual implements IVisual {
             const estW = escapedPillarLabel.length * labelFont.size * CHAR_W_RATIO;
             const pos = tipLabelX(positiveTip, tip, estW, padLeft, padLeft + chartW);
             const labelY = catC + labelFont.size * 0.35;
+            const labelFillV = scenarioInsideInk(pos.inside, labelFill);
             barLabelsBuf += svgLabelBg({
               cx: pos.x,
               y: labelY,
@@ -4602,7 +4751,7 @@ export class Visual implements IVisual {
               bgColor: resolvedPillarBgColor,
               bgTransparency: labelBgTransparency
             });
-            barLabelsBuf += `<text x="${pos.x.toFixed(1)}" y="${labelY.toFixed(1)}" text-anchor="${pos.anchor}"${fontAttrs(labelFont, labelFill)}>${escapedPillarLabel}</text>`;
+            barLabelsBuf += `<text x="${pos.x.toFixed(1)}" y="${labelY.toFixed(1)}" text-anchor="${pos.anchor}"${fontAttrs(labelFont, labelFillV)}>${escapedPillarLabel}</text>`;
           } else {
             const aboveY = yTop - 8;
             const fitsAbove = aboveY > padTop + labelFont.size + 2;
@@ -4628,7 +4777,7 @@ export class Visual implements IVisual {
               bgColor: resolvedPillarBgColor,
               bgTransparency: labelBgTransparency
             });
-            barLabelsBuf += `<text x="${cx.toFixed(1)}" y="${labelY.toFixed(1)}" text-anchor="middle"${fontAttrs(labelFont, labelFill)}>${escapedPillarLabel}</text>`;
+            barLabelsBuf += `<text x="${cx.toFixed(1)}" y="${labelY.toFixed(1)}" text-anchor="middle"${fontAttrs(labelFont, scenarioInsideInk(!fitsAbove, labelFill))}>${escapedPillarLabel}</text>`;
           }
           barLabelsBuf += `</g>`;
         }
@@ -4636,12 +4785,13 @@ export class Visual implements IVisual {
         const cat = this.cachedCategoryDisplay[item.categoryIndex];
         const perRowBridgeColor = cat?.bridgeColor;
         const perRowLabelColor = cat?.bridgeLabelColor;
+        const impactColor = impactColorFor(item.actualVal, item.label);
         const color = this.isHighContrast
           ? this.hcForeground
-          : (perRowBridgeColor || colorBridge);
+          : impactColor || (perRowBridgeColor || colorBridge);
         const labelColor = this.isHighContrast
           ? this.hcForeground
-          : (perRowLabelColor || colorBridgeLabel);
+          : impactColor || (perRowLabelColor || colorBridgeLabel);
         const perRowLabelBgColor = cat?.bridgeLabelBgColor;
         const labelBgColor = this.isHighContrast
           ? this.hcBackground
@@ -4668,9 +4818,10 @@ export class Visual implements IVisual {
             const slot = slots[k];
             const pLo = yScaleClamped(st.lo);
             const pHi = yScaleClamped(st.hi);
+            const segImpact = impactColorFor(seg.value, item.label);
             const segColor = this.isHighContrast
               ? this.hcForeground
-              : (seg.bridgeColor || colorBridge);
+              : segImpact || (seg.bridgeColor || colorBridge);
             svg += vertical
               ? `<rect x="${pLo.toFixed(1)}" y="${slot.lo.toFixed(1)}" width="${(pHi - pLo).toFixed(1)}" height="${slot.w.toFixed(1)}" fill="${escapeXmlAttr(segColor)}" rx="2"/>`
               : `<rect x="${slot.lo.toFixed(1)}" y="${pHi.toFixed(1)}" width="${slot.w.toFixed(1)}" height="${(pLo - pHi).toFixed(1)}" fill="${escapeXmlAttr(segColor)}" rx="2"/>`;
@@ -4682,6 +4833,7 @@ export class Visual implements IVisual {
               cardDecimals: bridgeDecimals,
               autoDecimals: decimals,
               locale: this.locale,
+              ...ibcsNum,
               dataMaxAbs,
               withSign: true
             });
@@ -4699,7 +4851,7 @@ export class Visual implements IVisual {
               spanHi: vertical ? pHi : pLo,
               color: this.isHighContrast
                 ? this.hcForeground
-                : (seg.bridgeLabelColor || colorBridgeLabel),
+                : segImpact || (seg.bridgeLabelColor || colorBridgeLabel),
               bgColor: this.isHighContrast
                 ? this.hcBackground
                 : (seg.bridgeLabelBgColor || colorBridgeLabelBg),
@@ -4715,6 +4867,7 @@ export class Visual implements IVisual {
                 cardDecimals: bridgeDecimals,
                 autoDecimals: decimals,
                 locale: this.locale,
+                ...ibcsNum,
                 dataMaxAbs,
                 withSign: true
               })
@@ -4798,7 +4951,9 @@ export class Visual implements IVisual {
           slices.forEach((sl, k) => {
             const pA = spans[k].a;
             const pB = spans[k].b;
-            const sliceColor = this.isHighContrast ? this.hcForeground : (sl.seg.bridgeColor || colorBridge);
+            const sliceColor = this.isHighContrast
+              ? this.hcForeground
+              : impactColorFor(sl.seg.value, item.label) || (sl.seg.bridgeColor || colorBridge);
             svg += vertical
               ? `<rect class="wf-split-slice" x="${Math.min(pA, pB).toFixed(1)}" y="${catLo.toFixed(1)}" width="${Math.abs(pB - pA).toFixed(1)}" height="${barW.toFixed(1)}" fill="${escapeXmlAttr(sliceColor)}"/>`
               : `<rect class="wf-split-slice" x="${x.toFixed(1)}" y="${Math.min(pA, pB).toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.abs(pB - pA).toFixed(1)}" fill="${escapeXmlAttr(sliceColor)}"/>`;
@@ -4810,6 +4965,7 @@ export class Visual implements IVisual {
               cardDecimals: bridgeDecimals,
               autoDecimals: decimals,
               locale: this.locale,
+              ...ibcsNum,
               dataMaxAbs,
               withSign: true
             });
@@ -4847,6 +5003,7 @@ export class Visual implements IVisual {
             cardDecimals: bridgeDecimals,
             autoDecimals: decimals,
             locale: this.locale,
+            ...ibcsNum,
             dataMaxAbs,
             withSign: true
           });
@@ -4875,6 +5032,7 @@ export class Visual implements IVisual {
                   cardDecimals: bridgeDecimals,
                   autoDecimals: decimals,
                   locale: this.locale,
+                  ...ibcsNum,
                   dataMaxAbs,
                   withSign: true
                 }),
@@ -4994,6 +5152,7 @@ export class Visual implements IVisual {
           cardDecimals: pillarDecimals,
           autoDecimals: decimals,
           locale: this.locale,
+          ...ibcsNum,
           dataMaxAbs
         });
         const escaped = this.escapeXml(labelText);
@@ -5117,6 +5276,7 @@ export class Visual implements IVisual {
                   cardDecimals: bridgeDecimals,
                   autoDecimals: decimals,
                   locale: this.locale,
+                  ...ibcsNum,
                   dataMaxAbs,
                   withSign: true
                 })
@@ -5905,7 +6065,24 @@ export class Visual implements IVisual {
     });
     outlineStyle.selector = selector;
 
-    return [fillStyle, outlineMode, outlineColor, outlineWidth, outlineStyle];
+    const scenarioValue =
+      pillarsObj?.scenarioOverride === undefined ? "default" : String(pillarsObj.scenarioOverride);
+    const scenario = new formattingSettings.ItemDropdown({
+      name: "scenarioOverride",
+      displayName: "Scenario",
+      items: [
+        { value: "default", displayName: "(default)" },
+        { value: "none", displayName: "None" },
+        { value: "AC", displayName: "AC — actual (solid)" },
+        { value: "PY", displayName: "PY — previous year (grey)" },
+        { value: "PL", displayName: "PL — plan (outlined)" },
+        { value: "FC", displayName: "FC — forecast (hatched)" }
+      ],
+      value: { value: scenarioValue, displayName: scenarioValue }
+    });
+    scenario.selector = selector;
+
+    return [scenario, fillStyle, outlineMode, outlineColor, outlineWidth, outlineStyle];
   }
 
   // eslint-disable-next-line max-lines-per-function
@@ -6009,6 +6186,26 @@ export class Visual implements IVisual {
       !legendActive || legendApplyRaw === "pillars" || legendSplit;
     this.formattingSettings.pillars.pillarColor.visible =
       !legendActive || legendApplyRaw === "bridges" || legendSplit;
+    {
+      const b = this.formattingSettings.bridges;
+      b.colorMode.visible = b.colorBridge.visible;
+      const impactMode =
+        b.colorBridge.visible && String(b.colorMode.value?.value) === "impact";
+      if (impactMode) {
+        b.colorBridge.visible = false;
+        b.colorBridgeLabel.visible = false;
+      }
+      for (const sl of [
+        b.impactPolarity,
+        b.invertedList,
+        b.neutralThreshold,
+        b.colorGood,
+        b.colorBad,
+        b.colorNeutral
+      ]) {
+        sl.visible = impactMode;
+      }
+    }
     {
       const lg = this.formattingSettings.legend;
       const stackedOnly: Array<{ visible?: boolean }> = [
@@ -6130,6 +6327,9 @@ export class Visual implements IVisual {
               : {}),
             ...(cat.outlineOverride?.style !== undefined
               ? { outlineStyleOverride: cat.outlineOverride.style }
+              : {}),
+            ...(cat.scenarioOverride !== undefined
+              ? { scenarioOverride: cat.scenarioOverride }
               : {})
           })
         );

@@ -133,6 +133,8 @@
           "type": { "bool": true }
         },
         "textScale": { "displayName": "Text size (%)", "type": { "numeric": true } },
+        "uniformDecimals": { "displayName": "Uniform decimals", "type": { "bool": true } },
+        "unitSuffix": { "displayName": "Unit suffix on labels", "type": { "bool": true } },
         "formatString": {
           "type": { "formatting": { "formatString": true } }
         }
@@ -260,6 +262,8 @@
           "displayName": "Y axis floor offset (%) — Comparison only",
           "type": { "numeric": true }
         },
+        "scaleMax": { "displayName": "Scale max (0 = auto)", "type": { "numeric": true } },
+        "scaleMin": { "displayName": "Scale min (0 = auto)", "type": { "numeric": true } },
         "showBrokenAxis": {
           "displayName": "Show broken axis indicator",
           "type": { "bool": true }
@@ -392,7 +396,33 @@
         },
         "bold": { "displayName": "Bold", "type": { "bool": true } },
         "italic": { "displayName": "Italic", "type": { "bool": true } },
-        "underline": { "displayName": "Underline", "type": { "bool": true } }
+        "underline": { "displayName": "Underline", "type": { "bool": true } },
+        "colorMode": {
+          "displayName": "Color by",
+          "type": {
+            "enumeration": [
+              { "value": "single", "displayName": "Single color" },
+              { "value": "impact", "displayName": "Impact (IBCS)" }
+            ]
+          }
+        },
+        "impactPolarity": {
+          "displayName": "Polarity",
+          "type": {
+            "enumeration": [
+              { "value": "higherBetter", "displayName": "Higher is better" },
+              { "value": "higherWorse", "displayName": "Higher is worse (costs)" }
+            ]
+          }
+        },
+        "invertedList": { "displayName": "Inverted categories", "type": { "text": true } },
+        "neutralThreshold": { "displayName": "Neutral threshold", "type": { "numeric": true } },
+        "colorGood": { "displayName": "Good", "type": { "fill": { "solid": { "color": true } } } },
+        "colorBad": { "displayName": "Bad", "type": { "fill": { "solid": { "color": true } } } },
+        "colorNeutral": {
+          "displayName": "Neutral",
+          "type": { "fill": { "solid": { "color": true } } }
+        }
       }
     },
     "pillars": {
@@ -490,6 +520,39 @@
               { "value": "dashed", "displayName": "Dashed" }
             ]
           }
+        },
+        "scenario": {
+          "displayName": "Scenario",
+          "type": {
+            "enumeration": [
+              { "value": "none", "displayName": "None" },
+              { "value": "AC", "displayName": "AC — actual (solid)" },
+              { "value": "PY", "displayName": "PY — previous year (grey)" },
+              { "value": "PL", "displayName": "PL — plan (outlined)" },
+              { "value": "FC", "displayName": "FC — forecast (hatched)" }
+            ]
+          }
+        },
+        "scenarioOverride": {
+          "displayName": "Scenario (per pillar)",
+          "type": {
+            "enumeration": [
+              { "value": "default", "displayName": "(default)" },
+              { "value": "none", "displayName": "None" },
+              { "value": "AC", "displayName": "AC — actual (solid)" },
+              { "value": "PY", "displayName": "PY — previous year (grey)" },
+              { "value": "PL", "displayName": "PL — plan (outlined)" },
+              { "value": "FC", "displayName": "FC — forecast (hatched)" }
+            ]
+          }
+        },
+        "scenarioColor": {
+          "displayName": "AC / PL / FC color",
+          "type": { "fill": { "solid": { "color": true } } }
+        },
+        "scenarioColorPrevious": {
+          "displayName": "PY color",
+          "type": { "fill": { "solid": { "color": true } } }
         },
         "colorPillarLabel": {
           "displayName": "Pillar label color",

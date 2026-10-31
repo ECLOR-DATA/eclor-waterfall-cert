@@ -55,6 +55,11 @@ const CARD_SPECS: CardSpec[] = [
           "general-showItemsWithNoData",
           "general-textScale"
         ]
+      },
+      {
+        uid: "generalNumbers-group",
+        displayName: "Numbers",
+        slices: ["general-uniformDecimals", "general-unitSuffix"]
       }
     ]
   },
@@ -116,7 +121,7 @@ const CARD_SPECS: CardSpec[] = [
         uid: "yAxisRange-group",
         displayName: "Range",
         inheritDisabled: false,
-        slices: ["yAxis-yMinOffset", "yAxis-showBrokenAxis"]
+        slices: ["yAxis-scaleMax", "yAxis-scaleMin", "yAxis-yMinOffset", "yAxis-showBrokenAxis"]
       },
       {
         uid: "yAxisGridlines-group",
@@ -141,6 +146,11 @@ const CARD_SPECS: CardSpec[] = [
         uid: "pillarsColors-group",
         displayName: "Colors",
         slices: ["pillars-pillarColor", "pillars-pillarFillStyle"]
+      },
+      {
+        uid: "pillarsScenario-group",
+        displayName: "Scenario",
+        slices: ["pillars-scenario", "pillars-scenarioColor", "pillars-scenarioColorPrevious"]
       },
       {
         uid: "pillarsOutline-group",
@@ -173,7 +183,19 @@ const CARD_SPECS: CardSpec[] = [
       {
         uid: "bridgesColors-group",
         displayName: "Colors",
-        slices: ["bridges-colorBridge"]
+        slices: ["bridges-colorMode", "bridges-colorBridge"]
+      },
+      {
+        uid: "bridgesImpact-group",
+        displayName: "Impact",
+        slices: [
+          "bridges-impactPolarity",
+          "bridges-invertedList",
+          "bridges-neutralThreshold",
+          "bridges-colorGood",
+          "bridges-colorBad",
+          "bridges-colorNeutral"
+        ]
       },
       {
         uid: "bridgesDataLabels-group",

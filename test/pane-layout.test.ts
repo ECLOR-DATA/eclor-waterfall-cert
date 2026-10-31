@@ -146,9 +146,10 @@ describe("relayoutPane — target structure (static build)", () => {
     expect(fm.cards.map((c: Any) => c.uid)).toEqual(EXPECTED_CARD_ORDER);
   });
 
-  test("General = mode + orientation + bar width + no-data + text size, single headerless group", () => {
+  test("General = mode + orientation + bar width + no-data + text size, headerless group + Numbers", () => {
     const general = cardByUid(relayoutPane(builtModel()), "general-card");
-    expect(groupUids(general)).toEqual(["general-group"]);
+    expect(groupUids(general)).toEqual(["general-group", "generalNumbers-group"]);
+    expect(sliceUids(general.groups[1])).toEqual(["general-uniformDecimals", "general-unitSuffix"]);
     expect(sliceUids(general.groups[0])).toEqual([
       "general-mode",
       "general-orientation",
@@ -203,15 +204,20 @@ describe("relayoutPane — target structure (static build)", () => {
     const pillars = cardByUid(fm, "pillars-card");
     expect(groupUids(pillars)).toEqual([
       "pillarsColors-group",
+      "pillarsScenario-group",
       "pillarsOutline-group",
       "pillarsDataLabels-group"
     ]);
-    expect(toggleDescriptor(pillars.groups[1])).toBe("pillars.outlineShow");
-    expect(pillars.groups[1].inheritDisabled).toBe(false);
-    expect(toggleDescriptor(pillars.groups[2])).toBe("pillars.showDataLabels");
+    expect(toggleDescriptor(pillars.groups[2])).toBe("pillars.outlineShow");
+    expect(pillars.groups[2].inheritDisabled).toBe(false);
+    expect(toggleDescriptor(pillars.groups[3])).toBe("pillars.showDataLabels");
     const bridges = cardByUid(fm, "bridges-card");
-    expect(groupUids(bridges)).toEqual(["bridgesColors-group", "bridgesDataLabels-group"]);
-    expect(toggleDescriptor(bridges.groups[1])).toBe("bridges.showDataLabels");
+    expect(groupUids(bridges)).toEqual([
+      "bridgesColors-group",
+      "bridgesImpact-group",
+      "bridgesDataLabels-group"
+    ]);
+    expect(toggleDescriptor(bridges.groups[2])).toBe("bridges.showDataLabels");
   });
 
   test("groups whose effects survive show=off escape the card-toggle graying (inheritDisabled)", () => {
@@ -329,8 +335,9 @@ describe("relayoutPane — full pipeline (getFormattingModel integration)", () =
     const fm = (v as Any).getFormattingModel();
     expect(groupUids(cardByUid(fm, "bridges-card"))).toEqual(["bridgesDataLabels-group"]);
     const pillarGroups = groupUids(cardByUid(fm, "pillars-card"));
-    expect(pillarGroups.slice(0, 3)).toEqual([
+    expect(pillarGroups.slice(0, 4)).toEqual([
       "pillarsColors-group",
+      "pillarsScenario-group",
       "pillarsOutline-group",
       "pillarsDataLabels-group"
     ]);
@@ -380,12 +387,13 @@ describe("relayoutPane — full pipeline (getFormattingModel integration)", () =
     expect(arcGroups[3].startsWith("arcDest_")).toBe(true);
 
     const pillarGroups = groupUids(cardByUid(fm, "pillars-card"));
-    expect(pillarGroups.slice(0, 3)).toEqual([
+    expect(pillarGroups.slice(0, 4)).toEqual([
       "pillarsColors-group",
+      "pillarsScenario-group",
       "pillarsOutline-group",
       "pillarsDataLabels-group"
     ]);
-    expect(pillarGroups.slice(3)).toEqual(["cat_0-group", "cat_1-group", "cat_2-group"]);
+    expect(pillarGroups.slice(4)).toEqual(["cat_0-group", "cat_1-group", "cat_2-group"]);
   });
 
   test("built model stays deterministic across two pane opens (uid stability)", () => {

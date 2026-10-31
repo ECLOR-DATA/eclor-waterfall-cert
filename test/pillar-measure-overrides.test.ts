@@ -95,6 +95,7 @@ describe("D1 pane — measure pillars carry the full appearance block", () => {
 
     expect(sliceNames(v, "pillarsMeasure_Y1")).toEqual([
       "measureFillColor",
+      "scenarioOverride",
       "fillStyle",
       "outlineMode",
       "outlineColorOverride",
@@ -144,6 +145,7 @@ describe("D1 pane — measure pillars carry the full appearance block", () => {
     v.getFormattingModel();
     expect(sliceNames(v, "cat_0")).toEqual([
       "isPillar",
+      "scenarioOverride",
       "fillStyle",
       "outlineMode",
       "outlineColorOverride",

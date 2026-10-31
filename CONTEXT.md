@@ -201,6 +201,17 @@ SVG text baseline is **not** the top of the glyph. Segoe UI / Arial place glyph 
 
 **Don't:** move slices between capabilities objects to "clean up" the pane (that IS a persistence break); dissolve a dynamic group in the spec; reuse a group uid.
 
+### 22. IBCS semantics are options with a neutral value, resolved in one pure module (1.9.0.0)
+
+**What:** scenario notation (AC / PY / PL / FC), variance colour by impact (polarity + per-category inversion + neutral threshold), fixed value-axis extent, uniform decimals + unit written once. All four live in [src/ibcs.ts](src/ibcs.ts) (plus `formatActualLabel`'s `uniformDecimals` / `stripSuffixDivisor` in [src/format.ts](src/format.ts)).
+
+**Precedence decisions (don't flip without asking):**
+- A **scenario** wins over the theme, the global pillar colour AND fx, and over the fill-style dropdown. Choosing "PY" means "paint it the PY way"; a user who wants brand colours leaves Scenario = None. The Grand Total is exempt (its own card).
+- **Impact** wins over the bridge colour AND fx, bar and label. An fx rule is evaluated per category on ONE value (the first measure's, see the aggregate-bridge gotcha), so it cannot express "a cost increase is bad". Impact computes it from the bridge's own delta.
+- A **fixed scale** never hides data. Overflow widens to the auto fit and warns (`displayWarningIcon`). Clipping with an outlier mark was rejected: a bar cut silently is worse than a scale that is visibly not shared. Round ticks only under a fixed scale (the auto ticks stay range / 5, byte-identical).
+- **Unit once** strips only labels whose scale divisor equals the pillar labels' one. A bridge card set to another unit keeps its suffix rather than reading wrong.
+- The inside-label contrast fix is **gated on a solid scenario**: the same fix for every pillar would change default renders (black text on a dark theme pillar today). It is a candidate for a separate, deliberate change.
+
 ---
 
 ## AppSource / Partner Center listing metadata (mandatory)

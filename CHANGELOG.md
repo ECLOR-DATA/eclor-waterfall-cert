@@ -5,6 +5,65 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0.0] - 2026-10-31
+
+### Added — IBCS semantics: scenario notation, impact colours, identical scales, homogeneous numbers
+
+The four points a certified IBCS reviewer raises first, as options. Each
+one defaults to the 1.8.1.0 render: the 785 frames of the 1.8.1.0 suite,
+rendered by the 1.8.1.0 code and by the 1.9.0.0 code, are byte-identical,
+and no existing Format-pane line changed (additions only). Before/after
+tiles, rendered in Chromium on a Power BI-like canvas:
+[docs/screens/feat-1.9.0/](docs/screens/feat-1.9.0/) (`before/sheet.png`,
+`after/sheet.png`). Pure logic in `src/ibcs.ts`.
+
+- **Scenario notation (rule UNIFY)** — Pillars → Scenario, globally and
+  per pillar (the per-category / per-measure groups gain a *Scenario*
+  dropdown, first):
+  - AC: solid dark.
+  - PY: solid light grey.
+  - PL: outlined.
+  - FC: hatched.
+
+  A scenario sets the pillar's fill style AND colour (two pickers: *AC / PL
+  / FC color* `#404040`, *PY color* `#a6a6a6`), over the theme and fx
+  colour. A per-pillar *None* opts one pillar out of a global scenario. The
+  Grand Total keeps its own card's look. A label pushed inside a solid
+  scenario pillar takes a contrasting colour, as an inside bridge label
+  already did (white on AC). Pillars without a scenario keep their label
+  colour.
+- **Variance colour by impact (rule SAY)** — Bridges → *Color by* = *Impact
+  (IBCS)*: good / bad / neutral, bar AND label, over the bridge colour and
+  fx. Settings:
+  - *Polarity*: *Higher is worse (costs)* reads a cost measure, so an
+    increase is bad.
+  - *Inverted categories* (`;`-separated, case-insensitive) flips the
+    polarity for the listed lines: cost lines inside a P&L stored positive.
+  - *Neutral threshold*: a |Δ| at or under it is neutral.
+  - Colours: IBCS green `#8cb400`, red `#ff0000`, grey `#a6a6a6`.
+
+  A split bridge's parts each take their own impact. The knobs show only in
+  *Impact* mode. Under a stacked legend on the bridges, the mode leaves the
+  pane along with the bridge colour.
+- **Identical scales (rule CHECK)** — Y axis → *Scale max* / *Scale min*
+  (0 = auto). A fixed bound replaces the auto fit when the data fits under
+  it, so two waterfalls given the same value share one scale. It never hides
+  data: a value past the bound widens the axis back to the auto fit and
+  raises the host warning icon (*Scale widened*, en + fr). A fixed scale
+  gets round 1 / 2 / 2.5 / 5 × 10ⁿ ticks: *Scale max = 4 500* no longer
+  prints « 5K » at the top.
+- **Homogeneous numbers** — General → Numbers:
+  - *Uniform decimals*: one decimal count for every pillar and bridge
+    label, the largest the auto precision picks for any of them. « 4.20K /
+    -0.06K » instead of « 4K / -0.06K ».
+  - *Unit suffix on labels* off: the K / M / bn is written once, in a
+    corner note (« in K » / « en K »), and stripped from every label and
+    axis tick at that scale. A label at another scale keeps its suffix.
+
+Tooling: `test/render-screens-190.test.ts` (gated, `RENDER_SCREENS=1`) and
+`tools/render-sheet.mjs` (Chromium contact sheet, dev-only) make the loop
+"change → render → look" one command each.
+
 ## [1.8.1.0] - 2026-10-26
 
 ### Fixed — an arc bubble could cover a bridge label

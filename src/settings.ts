@@ -187,6 +187,16 @@ class GeneralCardSettings extends FormattingSettingsCard {
       maxValue: { type: 1, value: 400 }
     }
   });
+  uniformDecimals = new formattingSettings.ToggleSwitch({
+    name: "uniformDecimals",
+    displayName: "Uniform decimals",
+    value: false
+  });
+  unitSuffix = new formattingSettings.ToggleSwitch({
+    name: "unitSuffix",
+    displayName: "Unit suffix on labels",
+    value: true
+  });
   name: string = "general";
   displayName: string = "General";
   displayNameKey: string = "Visual_General";
@@ -194,7 +204,9 @@ class GeneralCardSettings extends FormattingSettingsCard {
     this.mode,
     this.orientation,
     this.showItemsWithNoData,
-    this.textScale
+    this.textScale,
+    this.uniformDecimals,
+    this.unitSuffix
   ];
 }
 
@@ -312,6 +324,22 @@ class YAxisCardSettings extends FormattingSettingsCard {
       maxValue: { type: 1, value: 95 }
     }
   });
+  scaleMax = new formattingSettings.NumUpDown({
+    name: "scaleMax",
+    displayName: "Scale max (0 = auto)",
+    value: 0,
+    options: {
+      minValue: { type: 0, value: 0 }
+    }
+  });
+  scaleMin = new formattingSettings.NumUpDown({
+    name: "scaleMin",
+    displayName: "Scale min (0 = auto)",
+    value: 0,
+    options: {
+      maxValue: { type: 1, value: 0 }
+    }
+  });
   showBrokenAxis = new formattingSettings.ToggleSwitch({
     name: "showBrokenAxis",
     displayName: "Show broken axis indicator",
@@ -363,6 +391,8 @@ class YAxisCardSettings extends FormattingSettingsCard {
   slices: FormattingSettingsSlice[] = [
     this.show,
     this.yMinOffset,
+    this.scaleMax,
+    this.scaleMin,
     this.showBrokenAxis,
     this.showGridlines,
     this.gridlineStyle,
@@ -413,6 +443,53 @@ class BridgesCardSettings extends formattingSettings.CompositeCard {
   });
   labelBgTransparency = makeLabelBgTransparency();
   font = makeFontControl(14, false);
+  colorMode = new formattingSettings.ItemDropdown({
+    name: "colorMode",
+    displayName: "Color by",
+    items: [
+      { value: "single", displayName: "Single color" },
+      { value: "impact", displayName: "Impact (IBCS)" }
+    ],
+    value: { value: "single", displayName: "Single color" }
+  });
+  impactPolarity = new formattingSettings.ItemDropdown({
+    name: "impactPolarity",
+    displayName: "Polarity",
+    items: [
+      { value: "higherBetter", displayName: "Higher is better" },
+      { value: "higherWorse", displayName: "Higher is worse (costs)" }
+    ],
+    value: { value: "higherBetter", displayName: "Higher is better" }
+  });
+  invertedList = new formattingSettings.TextInput({
+    name: "invertedList",
+    displayName: "Inverted categories",
+    placeholder: "e.g. COGS; Personnel",
+    value: ""
+  });
+  neutralThreshold = new formattingSettings.NumUpDown({
+    name: "neutralThreshold",
+    displayName: "Neutral threshold",
+    value: 0,
+    options: {
+      minValue: { type: 0, value: 0 }
+    }
+  });
+  colorGood = new formattingSettings.ColorPicker({
+    name: "colorGood",
+    displayName: "Good",
+    value: { value: "#8cb400" }
+  });
+  colorBad = new formattingSettings.ColorPicker({
+    name: "colorBad",
+    displayName: "Bad",
+    value: { value: "#ff0000" }
+  });
+  colorNeutral = new formattingSettings.ColorPicker({
+    name: "colorNeutral",
+    displayName: "Neutral",
+    value: { value: "#a6a6a6" }
+  });
   name: string = "bridges";
   displayName: string = "Bridges";
   displayNameKey: string = "Visual_Bridges";
@@ -431,7 +508,14 @@ class BridgesCardSettings extends formattingSettings.CompositeCard {
       this.labelBgShow,
       this.labelBgColor,
       this.labelBgTransparency,
-      this.font
+      this.font,
+      this.colorMode,
+      this.impactPolarity,
+      this.invertedList,
+      this.neutralThreshold,
+      this.colorGood,
+      this.colorBad,
+      this.colorNeutral
     ]
   });
   groups: formattingSettings.Group[] = [this.generalGroup];
@@ -502,6 +586,28 @@ class PillarsCardSettings extends formattingSettings.CompositeCard {
     ],
     value: { value: "solid", displayName: "Solid" }
   });
+  scenario = new formattingSettings.ItemDropdown({
+    name: "scenario",
+    displayName: "Scenario",
+    items: [
+      { value: "none", displayName: "None" },
+      { value: "AC", displayName: "AC — actual (solid)" },
+      { value: "PY", displayName: "PY — previous year (grey)" },
+      { value: "PL", displayName: "PL — plan (outlined)" },
+      { value: "FC", displayName: "FC — forecast (hatched)" }
+    ],
+    value: { value: "none", displayName: "None" }
+  });
+  scenarioColor = new formattingSettings.ColorPicker({
+    name: "scenarioColor",
+    displayName: "AC / PL / FC color",
+    value: { value: "#404040" }
+  });
+  scenarioColorPrevious = new formattingSettings.ColorPicker({
+    name: "scenarioColorPrevious",
+    displayName: "PY color",
+    value: { value: "#a6a6a6" }
+  });
   name: string = "pillars";
   displayName: string = "Pillars";
   displayNameKey: string = "Visual_Pillars";
@@ -524,7 +630,10 @@ class PillarsCardSettings extends formattingSettings.CompositeCard {
       this.labelBgShow,
       this.labelBgColor,
       this.labelBgTransparency,
-      this.font
+      this.font,
+      this.scenario,
+      this.scenarioColor,
+      this.scenarioColorPrevious
     ]
   });
   groups: formattingSettings.Group[] = [this.generalGroup];
